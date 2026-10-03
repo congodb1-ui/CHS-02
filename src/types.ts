@@ -1,6 +1,30 @@
-export type UserRole = 'supervisor' | 'admin' | 'member' | 'secretary';
+export type UserRole =
+  | 'public'
+  | 'resident'
+  | 'supervisor'
+  | 'mc_member'
+  | 'admin'
+  // Legacy aliases for full backward compatibility
+  | 'member'
+  | 'secretary';
+
+export const ROLE_LABELS: Record<string, string> = {
+  public: 'Public (Unauthenticated)',
+  resident: 'Resident',
+  supervisor: 'Supervisor',
+  mc_member: 'MC Member',
+  admin: 'Admin',
+  member: 'Resident',
+  secretary: 'MC Member',
+};
 
 export type TowerId = 'Tower A' | 'Tower B' | 'Tower C';
+
+// 120 Predefined flats across Towers A and B (15 floors, 4 flats per floor: 101 to 1504)
+export const ALL_SOCIETY_FLATS: string[] = [
+  ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `A-${(f + 1) * 100 + u}`)).flat(),
+  ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `B-${(f + 1) * 100 + u}`)).flat(),
+];
 
 export interface ChatMessage {
   id: string;
@@ -168,6 +192,20 @@ export interface ParkingSlot {
   ownerName?: string;
 }
 
+export interface VehicleRecord {
+  id: string;
+  flatNo: string; // Dropdown selector from predefined list (A-101 to B-1504)
+  ownerName: string;
+  vehicleType: '4-Wheeler' | '2-Wheeler' | 'EV (4-Wheeler)' | 'EV (2-Wheeler)';
+  makeModel: string;
+  licensePlate: string;
+  rfidTagId: string;
+  parkingStickerNo: string;
+  parkingSlotNo: string;
+  isEv: boolean;
+  registeredDate: string;
+}
+
 export interface VisitorParkingPass {
   id: string;
   passNumber: string;
@@ -185,29 +223,62 @@ export interface VisitorParkingPass {
 
 export interface MemberProfile {
   id: string;
-  memberId: string; // e.g. SOL-A-302
+  memberId: string; // e.g. SOL-A-402
   email: string;
   name: string;
   tower: TowerId;
-  flatNo: string;
+  flatNo: string; // Strictly unique per flat constraint!
   role: UserRole;
   ownershipType: 'Owner' | 'Tenant';
   phone: string;
-  isApproved: boolean;
+  isApproved: boolean; // default false
+  status: 'Pending Approval' | 'Approved' | 'Rejected';
   registeredDate: string;
+  approvedOrRejectedBy?: string;
+  reviewedAt?: string;
+  reviewRemarks?: string;
+}
+
+export interface ApprovalAuditEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  flatNo: string;
+  action: 'Approved' | 'Rejected' | 'Role Changed' | 'Registration Requested';
+  performedBy: string;
+  performedByRole: string;
+  timestamp: string;
+  details: string;
+}
+
+export interface SocietyDocument {
+  id: string;
+  title: string;
+  category: 'Bye-Laws & Governance' | 'Meeting Minutes (AGM/MC)' | 'Audit Reports & Financials' | 'AMC Agreements' | 'Circulars & Notices';
+  documentNumber?: string;
+  fileSize: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  fileUrl: string;
+  isRestrictedToMC: boolean;
+  tags: string[];
+  description?: string;
 }
 
 export interface Vendor {
   id: string;
   name: string;
-  category: 'Plumbing' | 'Electrical' | 'STP & Water' | 'Elevators / Lifts' | 'Civil Works & Painting' | 'Fire & Safety' | 'Security Systems';
+  category: 'STP & Water' | 'Elevators / Lifts' | 'Electrical & DG' | 'Civil Works & Painting' | 'Fire & Safety' | 'Security Systems' | 'Housekeeping' | 'Plumbing' | 'Electrical';
   contactPerson: string;
   phone: string;
   email: string;
   gstNumber: string;
   panNumber?: string;
+  bankName?: string;
   bankAccountNumber?: string;
   ifscCode?: string;
+  registeredAddress?: string;
+  complianceDocUrl?: string;
   rating: number;
   registeredDate?: string;
 }
@@ -233,6 +304,7 @@ export interface VendorQuote {
   taxAmount?: number;
   grandTotal?: number;
   quotedAmount: number; // alias for backwards compatibility
+  validityDate?: string;
   estimatedDays: number;
   warrantyMonths: number;
   submittedDate: string;
@@ -245,7 +317,12 @@ export interface VendorQuote {
 
 export type PaymentStage = 'Advance' | 'Milestone 1' | 'Milestone 2' | 'Final Settlement';
 export type PaymentStatus = 'Unpaid' | 'Partially Paid' | 'Fully Paid';
-export type WorkOrderApprovalStatus = 'Pending Approval' | 'Approved' | 'Changes Requested' | 'Draft';
+export type WorkOrderApprovalStatus =
+  | 'Draft'
+  | 'Pending_Secretary_Approval'
+  | 'Approved'
+  | 'Changes_Requested'
+  | 'Issued_To_Vendor';
 
 export interface WorkOrderPayment {
   id: string;
@@ -262,7 +339,7 @@ export interface WorkOrderPayment {
 export interface WorkOrder {
   id: string; // e.g. WO-2026-001
   procurementTitle: string;
-  category: 'STP & Water' | 'Lifts / Elevators' | 'Electrical & DG' | 'Civil Works' | 'Security & CCTV' | 'Fire Safety';
+  category: 'STP & Water' | 'Lifts / Elevators' | 'Electrical & DG' | 'Civil Works' | 'Security & CCTV' | 'Fire Safety' | 'Housekeeping';
   quoteId?: string;
   quoteNumber?: string;
   vendorId: string;
@@ -271,6 +348,7 @@ export interface WorkOrder {
   vendorGst: string;
   vendorPan?: string;
   bankDetails?: {
+    bankName?: string;
     accountNumber: string;
     ifscCode: string;
   };
@@ -283,14 +361,37 @@ export interface WorkOrder {
   targetCompletionDate: string;
   progressPercent: number; // 0 to 100
   scopeSummary: string;
-  workScope?: string;
-  paymentTerms?: string;
-  approvalStatus?: WorkOrderApprovalStatus;
-  approvingUserId?: string; // e.g. "SOL-MC-SEC-01 (Pooja Hegde)"
+  paymentTerms: string;
+  approvalStatus: WorkOrderApprovalStatus;
+  approvingUserId?: string;
   approvedAt?: string;
   secretaryComments?: string;
   workStatus: 'Scheduled' | 'In Progress' | 'Inspection Stage' | 'Completed' | 'On Hold';
   releasedBy: string;
   releasedAt: string;
   payments: WorkOrderPayment[];
+}
+
+export interface PollOption {
+  id: string;
+  label: string;
+  votes: number;
+  color?: string;
+}
+
+export interface CommunityPoll {
+  id: string;
+  title: string;
+  description: string;
+  category: 'Infrastructure & EV' | 'Amenities & Energy' | 'Society Rules & Security' | 'Finance & Common Dues' | 'Green Living';
+  options: PollOption[];
+  totalVotes: number;
+  quorumTarget: number; // e.g. 60 flats required for resolution (50% of 120 flats)
+  startDate: string;
+  endDate: string;
+  status: 'Active' | 'Concluded';
+  createdByRole: string;
+  votedFlats: string[]; // List of flat numbers that have cast a vote
+  userVotes?: Record<string, string>; // flatNo -> optionId mapping
+  resolutionSummary?: string;
 }

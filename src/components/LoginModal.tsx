@@ -1,118 +1,91 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSociety } from '../context/SocietyContext';
 import {
   X,
   ShieldCheck,
-  User,
-  Wrench,
   Building,
   KeyRound,
   CheckCircle2,
   Lock,
-  Eye,
-  Check,
+  UserCheck,
+  AlertTriangle,
+  User,
+  Users,
+  Wrench,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, ALL_SOCIETY_FLATS, ROLE_LABELS } from '../types';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTab?: 'login' | 'register';
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
-  const { role, setRole, setActiveTab } = useSociety();
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, defaultTab = 'login' }) => {
+  const {
+    role,
+    loginAsRole,
+    registerMember,
+    profiles,
+    setActiveTab,
+  } = useSociety();
+
+  const [activeTab, setActiveTabMode] = useState<'login' | 'register'>(defaultTab);
+
+  // Registration Form State
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regTower, setRegTower] = useState<'Tower A' | 'Tower B'>('Tower A');
+  const [regFlat, setRegFlat] = useState(ALL_SOCIETY_FLATS[0]);
+  const [regOwnership, setRegOwnership] = useState<'Owner' | 'Tenant'>('Owner');
+  const [regError, setRegError] = useState('');
+  const [regSuccess, setRegSuccess] = useState('');
 
   if (!isOpen) return null;
 
-  const roleProfiles = [
-    {
-      id: 'member' as UserRole,
-      title: 'Resident Member (Owner / Tenant)',
-      persona: 'Rajesh Sharma (Flat A-402)',
-      badge: 'Member Access',
-      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-      description: 'Book society amenities, log flat maintenance service requests, apply for tenant move-in NOCs, and view live daily society walkthrough audits in transparency mode.',
-      permissions: [
-        'Book Swimming Pool, Gym & Clubhouse Slots',
-        'Log Plumbing, Electrical & Lift Complaints',
-        'Apply for Tenant Move-In & Parking FastTag',
-        'View Verified Daily Inspection & Water Audits (Read-Only)',
-        'Ask Solitaire AI Resident Assistant for Bye-Laws & Rules',
-      ],
-      restrictions: [
-        'Cannot edit supervisor daily inspection checklist',
-        'Cannot alter staff daily attendance records',
-        'Cannot approve/reject tenant NOC applications',
-        'CANNOT access AMC Vendor Register or MC Financial Ledgers',
-      ],
-      actionTab: 'home',
-    },
-    {
-      id: 'supervisor' as UserRole,
-      title: 'Facility Supervisor',
-      persona: 'Parvez (Field Operations Desk)',
-      badge: 'Ground Operations',
-      badgeColor: 'bg-teal-50 text-teal-800 border-teal-200',
-      description: 'Conducts morning & evening physical estate walkthroughs. Logs real-time status of 33 checkpoints and marks daily attendance for all 23 staff members.',
-      permissions: [
-        'Live edit & submit 33-point daily inspection checklist',
-        'Mark daily P/A/WO/HD attendance for all 23 personnel',
-        '1-click auto-escalate inspection defects to Helpdesk tickets',
-        'Record water meter, OHT tank, STP & DG fuel levels',
-      ],
-      restrictions: [
-        'CANNOT access society bank accounts, sinking funds, or AMC contracts',
-        'Cannot approve tenant NOC clearances',
-        'Cannot sign off on estate admin verification comments',
-      ],
-      actionTab: 'inspection',
-    },
-    {
-      id: 'secretary' as UserRole,
-      title: 'Secretary (Managing Committee)',
-      persona: 'Pooja Hegde-Patil (Secretary) & MC Members',
-      badge: 'Executive MC Clearance',
-      badgeColor: 'bg-sky-50 text-sky-800 border-sky-200',
-      description: 'Full Managing Committee governance: monitors supervisor walkthroughs in real-time, signs off on inspections, approves tenant NOC clearances, and accesses confidential AMC contracts & financials.',
-      permissions: [
-        'Full Access to Vendor AMC Register & Annual Contracts',
-        'Full Access to MC Financial Statements & Sinking Fund Ledgers',
-        'Live oversight of supervisor walkthroughs & flagged issues',
-        'Approve or Reject Tenant Move-In applications & police NOCs',
-        'Assign specialized AMC vendors to open complaints',
-      ],
-      restrictions: [
-        'All committee decisions logged with digital audit trail',
-      ],
-      actionTab: 'committee',
-    },
-    {
-      id: 'admin' as UserRole,
-      title: 'Society Office Admin & Chairman',
-      persona: 'Soleha Khan (Estate Admin) & Sanjeev Mathur (Chairman)',
-      badge: 'Full Master Admin',
-      badgeColor: 'bg-slate-900 text-white border-slate-700',
-      description: 'Complete administrative authority: signs off daily supervisor checklists with admin remarks, manages master financials, vendor AMC registers, and system configuration.',
-      permissions: [
-        'Full Access to AMC Vendor SLA Register & Financial Statements',
-        'Admin verification signoff on daily supervisor inspection reports',
-        'Full edit & management of all complaints, bookings, and tenants',
-        'System configuration & Google Sheets 2-way data bridge',
-      ],
-      restrictions: [],
-      actionTab: 'inspection',
-    },
-  ];
+  // Filter flats by selected tower
+  const availableFlatsForTower = ALL_SOCIETY_FLATS.filter((f) =>
+    regTower === 'Tower A' ? f.startsWith('A-') : f.startsWith('B-')
+  );
 
-  const handleSelect = (selectedRole: UserRole, targetTab: string) => {
-    setRole(selectedRole);
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegError('');
+    setRegSuccess('');
+
+    const res = registerMember({
+      name: regName.trim(),
+      email: regEmail.trim(),
+      phone: regPhone.trim(),
+      tower: regTower,
+      flatNo: regFlat,
+      ownershipType: regOwnership,
+    });
+
+    if (!res.success) {
+      setRegError(res.error || 'Registration failed.');
+    } else {
+      setRegSuccess(
+        `Registration submitted for Flat [${regFlat}]! Your account is set to "Pending Approval". Once verified by an MC Member or Admin, your resident privileges will unlock.`
+      );
+      setRegName('');
+      setRegEmail('');
+      setRegPhone('');
+    }
+  };
+
+  const handleRoleSelect = (selectedRole: UserRole, targetTab: string, profileId?: string) => {
+    loginAsRole(selectedRole, profileId);
     setActiveTab(targetTab);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
@@ -120,9 +93,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               <KeyRound className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Role-Based Access Control & Member Login</h2>
+              <h2 className="text-lg font-bold">Solitaire CHS · Access & Authentication</h2>
               <p className="text-xs text-slate-300">
-                KOOL HOMES SOLITAIRE CO-OP HOUSING SOCIETY LTD. · Multi-Tier Permission Engine
+                Single Member Per Flat Security · Role-Based Permissions Engine
               </p>
             </div>
           </div>
@@ -134,103 +107,289 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Info Strip */}
-        <div className="p-4 bg-teal-50 border-b border-teal-100 flex items-start gap-2.5 text-xs text-teal-900">
-          <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold">Role-Separated Security:</span> Each society role receives strictly restricted options on the website. Switch between profiles below to experience how permissions, editable forms, and read-only views adapt live!
-          </div>
-        </div>
-
-        {/* Roles Grid */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {roleProfiles.map((p) => {
-              const isCurrent = role === p.id;
-              return (
-                <div
-                  key={p.id}
-                  className={`p-5 rounded-xl border transition-all flex flex-col justify-between space-y-4 ${
-                    isCurrent
-                      ? 'border-teal-600 bg-teal-50/20 shadow-xs ring-1 ring-teal-600'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border inline-block mb-1 ${p.badgeColor}`}>
-                          {p.badge}
-                        </span>
-                        <h3 className="text-sm font-bold text-slate-900">{p.title}</h3>
-                        <p className="text-xs font-semibold text-teal-700">{p.persona}</p>
-                      </div>
-                      {isCurrent && (
-                        <span className="text-[11px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full shrink-0">
-                          Active Now
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-slate-600 leading-relaxed pt-1">
-                      {p.description}
-                    </p>
-
-                    {/* Permissions list */}
-                    <div className="pt-2 border-t border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        What this user CAN do:
-                      </span>
-                      {p.permissions.map((perm, i) => (
-                        <div key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700">
-                          <Check className="w-3 h-3 text-emerald-600 shrink-0 mt-0.5" />
-                          <span>{perm}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Restrictions list */}
-                    {p.restrictions.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100 space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 block">
-                          Restrictions (Protected):
-                        </span>
-                        {p.restrictions.map((restr, i) => (
-                          <div key={i} className="flex items-start gap-1.5 text-[11px] text-slate-500">
-                            <Lock className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
-                            <span>{restr}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleSelect(p.id, p.actionTab)}
-                    className={`w-full py-2 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                      isCurrent
-                        ? 'bg-teal-700 text-white hover:bg-teal-800'
-                        : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
-                    }`}
-                  >
-                    {isCurrent ? 'Continue in this Profile' : `Switch to ${p.title}`}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
-          <span>Active Session ID: <strong className="font-mono text-slate-700">SOL-AUTH-{role.toUpperCase()}</strong></span>
+        {/* Tab Switcher */}
+        <div className="flex border-b border-slate-200 bg-slate-50 px-6">
           <button
-            onClick={onClose}
-            className="px-4 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium cursor-pointer"
+            onClick={() => {
+              setActiveTabMode('login');
+              setRegError('');
+              setRegSuccess('');
+            }}
+            className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors ${
+              activeTab === 'login'
+                ? 'border-teal-700 text-teal-800 bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
           >
-            Close
+            Authorized Portal Login / Demo Switcher
+          </button>
+          <button
+            onClick={() => {
+              setActiveTabMode('register');
+              setRegError('');
+              setRegSuccess('');
+            }}
+            className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors ${
+              activeTab === 'register'
+                ? 'border-teal-700 text-teal-800 bg-white'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            New Flat Resident Registration
           </button>
         </div>
+
+        {/* TAB 1: LOGIN / ROLE DEMO */}
+        {activeTab === 'login' && (
+          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
+            <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-teal-900 flex items-start gap-2">
+              <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+              <span>
+                <strong>Multi-Tier Permission Engine:</strong> Select any of the generic society roles below to experience how the navigation, confidential records, and editing tools adapt live!
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Resident Role */}
+              <div className="p-4 rounded-xl border border-slate-200 hover:border-teal-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Resident
+                    </span>
+                    <h3 className="font-bold text-slate-900 text-sm">Resident Member (Verified Unit A-402)</h3>
+                  </div>
+                  <p className="text-slate-600">
+                    Book amenities, log service tickets, view FastTag parking, and review public society notices.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRoleSelect('resident', 'home', 'usr-001')}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
+                >
+                  Continue as Resident
+                </button>
+              </div>
+
+              {/* Pending Resident Demo */}
+              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/30 hover:border-amber-400 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
+                      Pending Verification
+                    </span>
+                    <h3 className="font-bold text-slate-900 text-sm">New Signup (Unit B-503 - Pending)</h3>
+                  </div>
+                  <p className="text-slate-600">
+                    Experience the restricted Pending Approval state. Shows instructions to wait for MC/Admin approval.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRoleSelect('resident', 'home', 'usr-010')}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
+                >
+                  Test Pending User
+                </button>
+              </div>
+
+              {/* Supervisor Role */}
+              <div className="p-4 rounded-xl border border-slate-200 hover:border-teal-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800">
+                      Supervisor
+                    </span>
+                    <h3 className="font-bold text-slate-900 text-sm">Facility Supervisor (Estate Operations)</h3>
+                  </div>
+                  <p className="text-slate-600">
+                    Submit 33-point physical walkthrough inspections, mark staff attendance, and log defect tickets.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRoleSelect('supervisor', 'inspection', 'usr-004')}
+                  className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
+                >
+                  Continue as Supervisor
+                </button>
+              </div>
+
+              {/* MC Member Role */}
+              <div className="p-4 rounded-xl border border-slate-200 hover:border-teal-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">
+                      MC Member
+                    </span>
+                    <h3 className="font-bold text-slate-900 text-sm">Managing Committee (Secretary / Treasurer)</h3>
+                  </div>
+                  <p className="text-slate-600">
+                    Approve member registrations, sign off work orders with comments, and review financial balance sheets.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRoleSelect('mc_member', 'procurement', 'usr-002')}
+                  className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
+                >
+                  Continue as MC Member
+                </button>
+              </div>
+
+              {/* Admin Role */}
+              <div className="p-4 rounded-xl border border-slate-900 bg-slate-900 text-white transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500 text-slate-950">
+                      Superuser
+                    </span>
+                    <h3 className="font-bold text-white text-sm">Society Admin (Full System Override)</h3>
+                  </div>
+                  <p className="text-slate-300">
+                    Full master control: inline-edit all database records, grant/revoke roles, and manage all files.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRoleSelect('admin', 'committee', 'usr-003')}
+                  className="px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 rounded-lg font-bold shrink-0 cursor-pointer text-xs"
+                >
+                  Master Admin Access
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: REGISTER FLAT (SINGLE MEMBER PER FLAT CONSTRAINT) */}
+        {activeTab === 'register' && (
+          <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4 text-xs">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <span>
+                <strong>One Member Per Flat Constraint:</strong> Solitaire CHS permits only 1 primary registered account per flat. If your flat is already registered, registration will be rejected.
+              </span>
+            </div>
+
+            {regError && (
+              <div className="p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-start gap-2 font-medium">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{regError}</span>
+              </div>
+            )}
+
+            {regSuccess && (
+              <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 flex items-start gap-2 font-medium">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{regSuccess}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Select Tower</label>
+                <select
+                  value={regTower}
+                  onChange={(e) => {
+                    const tower = e.target.value as 'Tower A' | 'Tower B';
+                    setRegTower(tower);
+                    setRegFlat(tower === 'Tower A' ? 'A-101' : 'B-101');
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
+                >
+                  <option value="Tower A">Tower A (Maple)</option>
+                  <option value="Tower B">Tower B (Cedar)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Predefined Flat (101 to 1504)</label>
+                <select
+                  value={regFlat}
+                  onChange={(e) => setRegFlat(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
+                >
+                  {availableFlatsForTower.map((flat) => (
+                    <option key={flat} value={flat}>
+                      {flat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Full Resident Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Suresh Nambiar"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Ownership Type</label>
+                <select
+                  value={regOwnership}
+                  onChange={(e) => setRegOwnership(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold"
+                >
+                  <option value="Owner">Flat Owner</option>
+                  <option value="Tenant">Registered Tenant</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="suresh@example.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Mobile Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+91 98220 00000"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
+                New accounts require MC verification before accessing portal modules.
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-bold cursor-pointer shadow-xs"
+                >
+                  Submit Registration
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

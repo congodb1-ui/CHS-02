@@ -1,5 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSociety } from '../../context/SocietyContext';
+import {
+  WorkOrder,
+  VendorQuote,
+  Vendor,
+  PaymentStage,
+  QuoteLineItem,
+} from '../../types';
 import {
   Briefcase,
   FileCheck,
@@ -12,7 +19,6 @@ import {
   Plus,
   Lock,
   ChevronRight,
-  ArrowRight,
   ShieldCheck,
   Building2,
   Calendar,
@@ -21,8 +27,16 @@ import {
   Download,
   Filter,
   Search,
+  X,
+  FileText,
+  CreditCard,
+  Building,
+  Check,
+  MessageSquare,
+  FileSpreadsheet,
+  AlertCircle,
+  Eye,
 } from 'lucide-react';
-import { WorkOrder, VendorQuote, PaymentStage } from '../../types';
 
 export const ProcurementView: React.FC = () => {
   const {
@@ -30,80 +44,194 @@ export const ProcurementView: React.FC = () => {
     workOrders,
     quotes,
     vendors,
+    onboardVendor,
     addVendorQuote,
     approveQuoteAndReleaseWorkOrder,
+    approveWorkOrder,
+    requestWorkOrderChanges,
     updateWorkOrderProgress,
     addWorkOrderPayment,
     userName,
+    currentMemberId,
   } = useSociety();
 
-  const [activeTab, setActiveTab] = useState<'work_orders' | 'quotes' | 'vendors'>('work_orders');
+  const [activeTab, setActiveTab] = useState<'summary' | 'work_orders' | 'quotes' | 'vendors'>('summary');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
-  const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
+  const [showOnboardVendorModal, setShowOnboardVendorModal] = useState(false);
+  const [showMultiItemQuoteModal, setShowMultiItemQuoteModal] = useState(false);
+  const [showSecretaryApprovalModal, setShowSecretaryApprovalModal] = useState<WorkOrder | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<string | null>(null); // workOrderId
   const [showReleaseModal, setShowReleaseModal] = useState<VendorQuote | null>(null);
+  const [secretaryComments, setSecretaryComments] = useState('');
+  const [approvalError, setApprovalError] = useState('');
 
-  // New Quote Form
-  const [projectTitle, setProjectTitle] = useState('Podium Expansion Joint Waterproofing');
-  const [projectId, setProjectId] = useState('PRJ-CIVIL-2026');
+  // Vendor Onboarding Form State
+  const [vendorName, setVendorName] = useState('');
+  const [vendorCategory, setVendorCategory] = useState<Vendor['category']>('STP & Water');
+  const [vendorContact, setVendorContact] = useState('');
+  const [vendorPhone, setVendorPhone] = useState('');
+  const [vendorEmail, setVendorEmail] = useState('');
+  const [vendorGst, setVendorGst] = useState('');
+  const [vendorPan, setVendorPan] = useState('');
+  const [vendorBankName, setVendorBankName] = useState('');
+  const [vendorBankAcc, setVendorBankAcc] = useState('');
+  const [vendorIfsc, setVendorIfsc] = useState('');
+  const [vendorAddress, setVendorAddress] = useState('');
+  const [vendorDocUrl, setVendorDocUrl] = useState('');
+
+  // Multi-Item Quote Form State
+  const [quoteProjectTitle, setQuoteProjectTitle] = useState('Elevator Governor & Safety Sensor Overhaul');
   const [quoteVendorId, setQuoteVendorId] = useState(vendors[0]?.id || '');
-  const [quoteAmount, setQuoteAmount] = useState<number>(185000);
-  const [quoteDays, setQuoteDays] = useState<number>(15);
-  const [quoteWarranty, setQuoteWarranty] = useState<number>(24);
-  const [quoteScope, setQuoteScope] = useState('High-pressure PU chemical grouting across 45 running meters of podium expansion joints.');
-  const [quoteNotes, setQuoteNotes] = useState('Competitive quote submitted following joint technical walkthrough with Secretary.');
+  const [quoteNumber, setQuoteNumber] = useState(`Q-SOL-${Date.now().toString().slice(-4)}`);
+  const [quoteValidity, setQuoteValidity] = useState(
+    new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0]
+  );
+  const [quoteGstPercent, setQuoteGstPercent] = useState<number>(18);
+  const [quotePdfUrl, setQuotePdfUrl] = useState('');
+  const [quoteDays, setQuoteDays] = useState<number>(10);
+  const [quoteWarranty, setQuoteWarranty] = useState<number>(12);
+  const [quoteScope, setQuoteScope] = useState('');
+  const [quoteNotes, setQuoteNotes] = useState('');
 
-  // Release WO form state
+  // Dynamic Line Items State
+  const [lineItems, setLineItems] = useState<QuoteLineItem[]>([
+    { id: '1', description: 'Supply & replacement of primary safety sensor kit', quantity: 2, unitPrice: 25000, lineTotal: 50000 },
+    { id: '2', description: 'Governor rope recalibration & statutory safety test', quantity: 1, unitPrice: 15000, lineTotal: 15000 },
+  ]);
+
+  // Calculate dynamic line items subtotal, GST, and grand total
+  const calculatedSubtotal = useMemo(() => {
+    return lineItems.reduce((acc, item) => acc + item.lineTotal, 0);
+  }, [lineItems]);
+
+  const calculatedTax = useMemo(() => {
+    return Math.round((calculatedSubtotal * quoteGstPercent) / 100);
+  }, [calculatedSubtotal, quoteGstPercent]);
+
+  const calculatedGrandTotal = useMemo(() => {
+    return calculatedSubtotal + calculatedTax;
+  }, [calculatedSubtotal, calculatedTax]);
+
+  // Payment Form State
+  const [paymentType, setPaymentType] = useState<PaymentStage>('Milestone 1');
+  const [paymentAmount, setPaymentAmount] = useState<number>(25000);
+  const [paymentMode, setPaymentMode] = useState<'NEFT / RTGS' | 'Cheque' | 'Society Bank Portal'>('NEFT / RTGS');
+  const [paymentUtr, setPaymentUtr] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Work Order Release Form State
   const [woStartDate, setWoStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [woTargetDate, setWoTargetDate] = useState(
     new Date(Date.now() + 21 * 24 * 3600 * 1000).toISOString().split('T')[0]
   );
 
-  // Payment Form State
-  const [paymentType, setPaymentType] = useState<PaymentStage>('Milestone 1');
-  const [paymentAmount, setPaymentAmount] = useState<number>(50000);
-  const [paymentMode, setPaymentMode] = useState<'NEFT / RTGS' | 'Cheque' | 'Society Bank Portal'>('NEFT / RTGS');
-  const [paymentUtr, setPaymentUtr] = useState('');
-  const [paymentNotes, setPaymentNotes] = useState('');
-
-  const isAuthorized = role === 'secretary' || role === 'admin';
+  const isAuthorized = role === 'mc_member' || role === 'admin' || role === 'secretary';
 
   // Overall Financial Calculations
-  const totalCommittedAmount = workOrders.reduce((sum, wo) => sum + wo.totalApprovedAmount, 0);
-  const totalDisbursedAmount = workOrders.reduce((sum, wo) => {
-    return sum + wo.payments.reduce((pSum, p) => pSum + p.amountPaid, 0);
+  const totalCommittedAmount = (workOrders || []).reduce((sum, wo) => sum + (Number(wo?.totalApprovedAmount) || 0), 0);
+  const totalDisbursedAmount = (workOrders || []).reduce((sum, wo) => {
+    const pList = Array.isArray(wo?.payments) ? wo.payments : [];
+    return sum + pList.reduce((pSum, p) => pSum + (Number(p?.amountPaid) || 0), 0);
   }, 0);
   const totalBalanceDue = Math.max(0, totalCommittedAmount - totalDisbursedAmount);
 
-  const filteredWorkOrders = workOrders.filter((wo) => {
-    const matchesCategory = selectedCategory === 'All' || wo.category === selectedCategory;
-    const matchesSearch =
-      wo.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      wo.procurementTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      wo.vendorName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const handleCreateQuote = (e: React.FormEvent) => {
-    e.preventDefault();
-    const vendorObj = vendors.find((v) => v.id === quoteVendorId) || vendors[0];
-    addVendorQuote({
-      procurementProjectId: projectId,
-      projectTitle,
-      vendorId: quoteVendorId,
-      vendorName: vendorObj.name,
-      quotedAmount: Number(quoteAmount) || 100000,
-      estimatedDays: Number(quoteDays) || 10,
-      warrantyMonths: Number(quoteWarranty) || 12,
-      scopeOfWork: quoteScope,
-      committeeNotes: quoteNotes,
-    });
-    setShowNewQuoteModal(false);
+  // Line item change handlers
+  const handleItemChange = (index: number, field: keyof QuoteLineItem, value: any) => {
+    const updated = [...lineItems];
+    const item = { ...updated[index], [field]: value };
+    if (field === 'quantity' || field === 'unitPrice') {
+      const q = field === 'quantity' ? Number(value) || 0 : item.quantity;
+      const p = field === 'unitPrice' ? Number(value) || 0 : item.unitPrice;
+      item.lineTotal = q * p;
+    }
+    updated[index] = item;
+    setLineItems(updated);
   };
 
+  const handleAddLineItem = () => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: String(Date.now()),
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        lineTotal: 0,
+      },
+    ]);
+  };
+
+  const handleRemoveLineItem = (index: number) => {
+    if (lineItems.length <= 1) return;
+    setLineItems(lineItems.filter((_, i) => i !== index));
+  };
+
+  // Vendor Onboarding submit
+  const handleOnboardVendor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vendorName.trim()) return;
+
+    onboardVendor({
+      name: vendorName,
+      category: vendorCategory,
+      contactPerson: vendorContact,
+      phone: vendorPhone,
+      email: vendorEmail,
+      gstNumber: vendorGst || '27AAACL0000A1Z1',
+      panNumber: vendorPan || 'AAACL0000A',
+      bankName: vendorBankName,
+      bankAccountNumber: vendorBankAcc,
+      ifscCode: vendorIfsc,
+      registeredAddress: vendorAddress,
+      complianceDocUrl: vendorDocUrl,
+    });
+
+    setShowOnboardVendorModal(false);
+    setVendorName('');
+    setVendorContact('');
+    setVendorPhone('');
+    setVendorEmail('');
+    setVendorGst('');
+    setVendorPan('');
+    setVendorBankName('');
+    setVendorBankAcc('');
+    setVendorIfsc('');
+    setVendorAddress('');
+    setVendorDocUrl('');
+  };
+
+  // Multi-Item Quote submit
+  const handleCreateMultiItemQuote = (e: React.FormEvent) => {
+    e.preventDefault();
+    const vendorObj = vendors.find((v) => v.id === quoteVendorId) || vendors[0] || { id: 'VND-01', name: 'Vendor' };
+
+    addVendorQuote({
+      procurementProjectId: `PRJ-${Date.now().toString().slice(-4)}`,
+      projectTitle: quoteProjectTitle,
+      vendorId: quoteVendorId || vendorObj.id,
+      vendorName: vendorObj?.name || 'Selected Vendor',
+      quoteNumber,
+      validityDate: quoteValidity,
+      items: lineItems,
+      subtotal: calculatedSubtotal,
+      gstPercent: quoteGstPercent,
+      taxAmount: calculatedTax,
+      grandTotal: calculatedGrandTotal,
+      quotedAmount: calculatedGrandTotal,
+      estimatedDays: Number(quoteDays) || 10,
+      warrantyMonths: Number(quoteWarranty) || 12,
+      scopeOfWork: quoteScope || `Scope defined per ${lineItems.length} quoted items.`,
+      pdfProposalUrl: quotePdfUrl,
+      committeeNotes: quoteNotes,
+    });
+
+    setShowMultiItemQuoteModal(false);
+  };
+
+  // Confirm Release of Work Order
   const handleConfirmReleaseWO = () => {
     if (!showReleaseModal) return;
     approveQuoteAndReleaseWorkOrder(showReleaseModal.id, woStartDate, woTargetDate);
@@ -111,420 +239,488 @@ export const ProcurementView: React.FC = () => {
     setActiveTab('work_orders');
   };
 
+  // Secretary Approval Action
+  const handleSecretaryApprove = () => {
+    if (!showSecretaryApprovalModal) return;
+    if (!secretaryComments.trim()) {
+      setApprovalError('Secretary Comments are mandatory before issuing approval.');
+      return;
+    }
+    approveWorkOrder(showSecretaryApprovalModal.id, secretaryComments);
+    setShowSecretaryApprovalModal(null);
+    setSecretaryComments('');
+    setApprovalError('');
+  };
+
+  const handleSecretaryRequestChanges = () => {
+    if (!showSecretaryApprovalModal) return;
+    if (!secretaryComments.trim()) {
+      setApprovalError('Please detail the requested changes in Secretary Comments.');
+      return;
+    }
+    requestWorkOrderChanges(showSecretaryApprovalModal.id, secretaryComments);
+    setShowSecretaryApprovalModal(null);
+    setSecretaryComments('');
+    setApprovalError('');
+  };
+
+  // Record Payment
   const handleRecordPayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!showPaymentModal) return;
-    const utr = paymentUtr || `HDFC0000241N${Math.floor(100000 + Math.random() * 900000)}`;
+
     addWorkOrderPayment(showPaymentModal, {
       paymentDate: new Date().toISOString().split('T')[0],
       paymentType,
-      amountPaid: Number(paymentAmount) || 10000,
+      amountPaid: Number(paymentAmount),
       paymentMode,
-      referenceUtr: utr,
-      approvedBy: userName || 'MC Treasurer & Secretary',
-      notes: paymentNotes || `${paymentType} disbursement released after physical inspection.`,
+      referenceUtr: paymentUtr || `HDFC${Date.now().toString().slice(-8)}`,
+      approvedBy: userName || 'Treasurer (MC)',
+      notes: paymentNotes,
     });
+
     setShowPaymentModal(null);
-    setPaymentAmount(50000);
+    setPaymentAmount(25000);
     setPaymentUtr('');
     setPaymentNotes('');
   };
 
-  // Helper for individual Work Order calculations
-  const calculateWoFinancials = (wo: WorkOrder) => {
-    const totalPaid = wo.payments.reduce((sum, p) => sum + p.amountPaid, 0);
-    const balanceDue = Math.max(0, wo.totalApprovedAmount - totalPaid);
-    let status: 'Unpaid' | 'Partially Paid' | 'Fully Paid' = 'Unpaid';
-    if (totalPaid >= wo.totalApprovedAmount) {
-      status = 'Fully Paid';
-    } else if (totalPaid > 0) {
-      status = 'Partially Paid';
-    }
-    return { totalPaid, balanceDue, status };
-  };
-
-  if (!isAuthorized) {
-    return (
-      <div className="space-y-8 pb-16">
-        <div className="bg-white border border-slate-200 rounded-xl p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-xs space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center mx-auto">
-            <Lock className="w-7 h-7 text-amber-600" />
-          </div>
-          <div className="space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2.5 py-0.5 rounded">
-              Confidential MC Procurement Engine
-            </span>
-            <h2 className="text-xl font-bold text-slate-900">
-              Access Restricted: Vendor Procurement & Work Orders
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-lg mx-auto">
-              Vendor quotation evaluations, official Work Order release authorizations, and society payment ledgers are confidential and restricted strictly to <strong>Society Admin</strong> and <strong>Managing Committee (Secretary)</strong>.
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 max-w-md mx-auto space-y-1.5 text-left">
-            <div className="flex justify-between">
-              <span>Active Role:</span>
-              <strong className="text-slate-900 capitalize">{role}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Required Clearance:</span>
-              <span className="font-semibold text-teal-800">Secretary / Admin</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1.5 text-[11px] text-slate-500">
-              <span>Permission Status:</span>
-              <span className="text-red-600 font-semibold">Access Denied for Members & Supervisors</span>
-            </div>
-          </div>
-
-          <p className="text-[11px] text-slate-400">
-            Switch to <strong>&ldquo;Secretary (Pooja Hegde)&rdquo;</strong> or <strong>&ldquo;Society Admin&rdquo;</strong> in the top-right header role switcher to review procurement and disbursements.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Filtered lists
+  const filteredWorkOrders = useMemo(() => {
+    return (workOrders || []).filter((wo) => {
+      if (!wo) return false;
+      const matchesCategory = selectedCategory === 'All' || wo.category === selectedCategory;
+      const q = (searchQuery || '').toLowerCase();
+      const matchesSearch =
+        (wo.id || '').toLowerCase().includes(q) ||
+        (wo.procurementTitle || '').toLowerCase().includes(q) ||
+        (wo.vendorName || '').toLowerCase().includes(q) ||
+        (wo.quoteNumber ? wo.quoteNumber.toLowerCase().includes(q) : false);
+      return matchesCategory && matchesSearch;
+    });
+  }, [workOrders, selectedCategory, searchQuery]);
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header Banner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-teal-700">
-                KOOL HOMES SOLITAIRE CO-OP HOUSING SOCIETY LTD.
-              </span>
-              <span className="text-[10px] font-semibold bg-teal-50 border border-teal-200 text-teal-800 px-2 py-0.5 rounded">
-                Pure Supabase Operations Engine
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              Vendor Procurement & Work Order Lifecycle Engine
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Multi-vendor quotes evaluation, official Work Order release (WO-2026-XXX), real-time progress tracking ($0\% - 100\%$), and dynamic payment ledger with automated balance calculation.
-            </p>
+    <div className="space-y-6 pb-16 animate-in fade-in duration-300">
+      {/* Top Banner */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200 mb-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+            <span>MCS Act 1960 Compliant Procurement & Dual Sign-Off Engine</span>
           </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Vendor Procurement & Work Order Approval Engine
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            End-to-end estate CAPEX & OPEX contracts, multi-item quotation evaluation, secretary approvals, and milestone ledgers.
+          </p>
+        </div>
 
+        {isAuthorized && (
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setShowNewQuoteModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              onClick={() => setShowOnboardVendorModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+            >
+              <Building className="w-3.5 h-3.5 text-slate-700" />
+              <span>Onboard Vendor</span>
+            </button>
+            <button
+              onClick={() => setShowMultiItemQuoteModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Submit New Quote</span>
+              <span>Enter Multi-Item Quote</span>
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Financial KPIs Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Approved Work Orders</span>
+          <span className="text-2xl font-black text-slate-900 tabular-nums mt-1 block">
+            ₹{totalCommittedAmount.toLocaleString('en-IN')}
+          </span>
+          <span className="text-xs text-slate-500 mt-1 block">{workOrders.length} Major Engineering & AMC Projects</span>
         </div>
 
-        {/* Financial KPI Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-              Total Approved Procurement
-            </span>
-            <p className="text-2xl font-extrabold text-slate-900 tabular-nums">
-              ₹{totalCommittedAmount.toLocaleString()}
-            </p>
-            <p className="text-[11px] text-slate-500">Across {workOrders.length} released work orders</p>
-          </div>
-
-          <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
-            <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
-              Total Disbursed (Paid)
-            </span>
-            <p className="text-2xl font-extrabold text-emerald-900 tabular-nums">
-              ₹{totalDisbursedAmount.toLocaleString()}
-            </p>
-            <p className="text-[11px] text-emerald-700">Advances & milestone releases</p>
-          </div>
-
-          <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
-            <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">
-              Outstanding Balance Due
-            </span>
-            <p className="text-2xl font-extrabold text-amber-900 tabular-nums">
-              ₹{totalBalanceDue.toLocaleString()}
-            </p>
-            <p className="text-[11px] text-amber-700">Payable upon milestone verification</p>
-          </div>
-
-          <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-xl space-y-1">
-            <span className="text-[10px] uppercase font-bold text-teal-800 tracking-wider">
-              Active In-Progress Works
-            </span>
-            <p className="text-2xl font-extrabold text-teal-900 tabular-nums">
-              {workOrders.filter((w) => w.workStatus === 'In Progress').length} / {workOrders.length}
-            </p>
-            <p className="text-[11px] text-teal-700">STP, Lift rope & LED retrofit</p>
-          </div>
+        <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Disbursed Installments</span>
+          <span className="text-2xl font-black text-emerald-700 tabular-nums mt-1 block">
+            ₹{totalDisbursedAmount.toLocaleString('en-IN')}
+          </span>
+          <span className="text-xs text-emerald-700 font-medium mt-1 block">
+            {totalCommittedAmount > 0 ? Math.round((totalDisbursedAmount / totalCommittedAmount) * 100) : 0}% Paid Against Milestones
+          </span>
         </div>
 
-        {/* Segmented Navigation Tabs */}
-        <div className="mt-6 flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-lg max-w-md">
-          <button
-            onClick={() => setActiveTab('work_orders')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-              activeTab === 'work_orders'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Work Orders & Payments ({workOrders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('quotes')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-              activeTab === 'quotes'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Multi-Vendor Quotes ({quotes.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('vendors')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-              activeTab === 'vendors'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Vendor Directory ({vendors.length})
-          </button>
+        <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Balance Committed Payable</span>
+          <span className="text-2xl font-black text-amber-700 tabular-nums mt-1 block">
+            ₹{totalBalanceDue.toLocaleString('en-IN')}
+          </span>
+          <span className="text-xs text-slate-500 mt-1 block">Retained Until Work Sign-Off & Inspection</span>
         </div>
       </div>
 
-      {/* Tab 1: Work Orders & Payment Ledger */}
-      {activeTab === 'work_orders' && (
-        <div className="space-y-6">
-          {/* Filter Bar */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search Work Orders by ID, title, or vendor..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-teal-600"
-              />
+      {/* Sub-Tab Navigation */}
+      <div className="flex items-center border-b border-slate-200 bg-white px-4 rounded-t-xl gap-2 pt-2">
+        <button
+          onClick={() => setActiveTab('summary')}
+          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'summary'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          Procurement & Financial Summary Table
+        </button>
+        <button
+          onClick={() => setActiveTab('work_orders')}
+          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'work_orders'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          Active Work Orders & Secretary Approval ({workOrders.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('quotes')}
+          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'quotes'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          Multi-Item Quotation Comparison ({quotes.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('vendors')}
+          className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'vendors'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          Onboarded Vendor Directory ({vendors.length})
+        </button>
+      </div>
+
+      {/* SUB-TAB 1: LIVE FINANCIAL & PROCUREMENT SUMMARY DASHBOARD */}
+      {activeTab === 'summary' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Live Work Order Approval & Financial Summary</h3>
+                <p className="text-xs text-slate-500">
+                  Comprehensive audit trail of work orders, approved amounts, balance due, and Secretary approvals.
+                </p>
+              </div>
+
+              {/* Search */}
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter by WO #, vendor, or project..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
+                />
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-              {['All', 'STP & Water', 'Lifts / Elevators', 'Electrical & DG', 'Civil Works'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                    selectedCategory === cat
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3 px-3">WO Number</th>
+                    <th className="py-3 px-3">Vendor Name</th>
+                    <th className="py-3 px-3">Project Title</th>
+                    <th className="py-3 px-3 text-right">Grand Total</th>
+                    <th className="py-3 px-3 text-right">Amount Paid</th>
+                    <th className="py-3 px-3 text-right">Balance Due</th>
+                    <th className="py-3 px-3">Approval Status</th>
+                    <th className="py-3 px-3">Progress</th>
+                    <th className="py-3 px-3">Payment Status</th>
+                    <th className="py-3 px-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredWorkOrders.map((wo) => {
+                    const pList = Array.isArray(wo.payments) ? wo.payments : [];
+                    const paid = pList.reduce((sum, p) => sum + (Number(p?.amountPaid) || 0), 0);
+                    const totalAmt = Number(wo.totalApprovedAmount) || 0;
+                    const bal = Math.max(0, totalAmt - paid);
+                    const paymentStatus =
+                      paid >= totalAmt && totalAmt > 0
+                        ? 'Fully Paid'
+                        : paid > 0
+                        ? 'Partially Paid'
+                        : 'Unpaid';
+                    const apprStatus = (wo.approvalStatus || 'Pending_Secretary_Approval').replace(/_/g, ' ');
+
+                    return (
+                      <tr key={wo.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                          {wo.id}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-900">
+                          {wo.vendorName}
+                        </td>
+                        <td className="py-3 px-3 max-w-[200px]">
+                          <span className="font-medium text-slate-800 block truncate">{wo.procurementTitle}</span>
+                          <span className="text-[10px] text-slate-400 block">{wo.category}</span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                          ₹{totalAmt.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-semibold text-emerald-700">
+                          ₹{paid.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-amber-700">
+                          ₹{bal.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              wo.approvalStatus === 'Approved'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : wo.approvalStatus === 'Changes_Requested'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {apprStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-teal-600 rounded-full"
+                                style={{ width: `${wo.progressPercent}%` }}
+                              />
+                            </div>
+                            <span className="font-mono text-[11px] font-bold text-slate-700">
+                              {wo.progressPercent}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              paymentStatus === 'Fully Paid'
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : paymentStatus === 'Partially Paid'
+                                ? 'bg-sky-50 text-sky-800 border border-sky-200'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {paymentStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isAuthorized && wo.approvalStatus !== 'Approved' && (
+                              <button
+                                onClick={() => setShowSecretaryApprovalModal(wo)}
+                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-bold cursor-pointer"
+                              >
+                                Review WO
+                              </button>
+                            )}
+
+                            {isAuthorized && wo.approvalStatus === 'Approved' && bal > 0 && (
+                              <button
+                                onClick={() => {
+                                  setShowPaymentModal(wo.id);
+                                  setPaymentAmount(Math.min(50000, bal));
+                                }}
+                                className="px-2 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded text-[10px] font-bold cursor-pointer"
+                              >
+                                + Pay
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Work Orders List */}
-          <div className="space-y-5">
+      {/* SUB-TAB 2: ACTIVE WORK ORDERS DETAIL & SECRETARY APPROVAL */}
+      {activeTab === 'work_orders' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {filteredWorkOrders.map((wo) => {
-              const { totalPaid, balanceDue, status: paymentStatus } = calculateWoFinancials(wo);
+              const pList = Array.isArray(wo.payments) ? wo.payments : [];
+              const paid = pList.reduce((sum, p) => sum + (Number(p?.amountPaid) || 0), 0);
+              const totalAmt = Number(wo.totalApprovedAmount) || 0;
+              const bal = Math.max(0, totalAmt - paid);
+              const apprStatus = (wo.approvalStatus || 'Pending_Secretary_Approval').replace(/_/g, ' ');
 
               return (
                 <div
                   key={wo.id}
-                  className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-5 hover:border-slate-300 transition-colors"
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4"
                 >
-                  {/* Top Bar */}
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="font-mono font-bold text-xs bg-slate-100 text-slate-900 px-2 py-0.5 rounded border border-slate-200">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono font-bold text-xs bg-slate-900 text-white px-2 py-0.5 rounded">
                           {wo.id}
                         </span>
-                        <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
+                        <span className="text-xs font-semibold text-teal-700 uppercase tracking-wider bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
                           {wo.category}
                         </span>
                         <span
-                          className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                            wo.workStatus === 'Completed'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : wo.workStatus === 'In Progress'
-                              ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                              : 'bg-slate-100 text-slate-600'
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            wo.approvalStatus === 'Approved'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : wo.approvalStatus === 'Changes_Requested'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-amber-100 text-amber-900'
                           }`}
                         >
-                          {wo.workStatus}
+                          Approval: {apprStatus}
                         </span>
                       </div>
-                      <h3 className="text-base font-bold text-slate-900 pt-0.5">{wo.procurementTitle}</h3>
-                      <p className="text-xs text-slate-600 max-w-2xl">{wo.scopeSummary}</p>
+                      <h3 className="text-base font-bold text-slate-900">{wo.procurementTitle}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Vendor: <strong>{wo.vendorName}</strong> ({wo.vendorContact}) · GST: <span className="font-mono">{wo.vendorGst}</span>
+                      </p>
                     </div>
 
-                    <div className="flex flex-col md:items-end gap-1 shrink-0">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Approved Amount</span>
-                      <span className="text-xl font-extrabold text-slate-900 tabular-nums">
-                        ₹{wo.totalApprovedAmount.toLocaleString()}
+                    <div className="text-right sm:shrink-0">
+                      <span className="text-[11px] text-slate-400 block">Total Approved (incl. GST)</span>
+                      <span className="text-xl font-black font-mono text-slate-900">
+                        ₹{totalAmt.toLocaleString('en-IN')}
                       </span>
-                      <div className="flex items-center gap-1.5 pt-1">
-                        <span
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded ${
-                            paymentStatus === 'Fully Paid'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : paymentStatus === 'Partially Paid'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {paymentStatus}
-                        </span>
-                        <span className="text-xs text-slate-500 tabular-nums">
-                          (Balance: <strong>₹{balanceDue.toLocaleString()}</strong>)
-                        </span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Progress & Lifecycle Tracker (0% to 100%) */}
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <Percent className="w-3.5 h-3.5 text-teal-600" />
-                        <span className="font-bold text-slate-900">Work Completion Progress:</span>
-                        <strong className="text-teal-700 font-extrabold tabular-nums">{wo.progressPercent}%</strong>
+                  <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <strong>Work Scope:</strong> {wo.scopeSummary}
+                  </p>
+
+                  {/* Secretary Comments / Remarks banner */}
+                  {wo.secretaryComments && (
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs flex items-start gap-2">
+                      <MessageSquare className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-amber-950 block">Secretary Comments:</span>
+                        <span className="text-amber-900">{wo.secretaryComments}</span>
+                        {wo.approvedAt && (
+                          <span className="text-[10px] text-amber-700 block mt-0.5 font-mono">
+                            Signed off at: {wo.approvedAt} by {wo.approvingUserId}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-slate-500 text-[11px] tabular-nums">
-                        Target: {wo.targetCompletionDate} · Released by {wo.releasedBy}
+                    </div>
+                  )}
+
+                  {/* Payment Terms & Timelines */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Payment Terms:</span>
+                      <span className="font-medium text-slate-800">{wo.paymentTerms}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Execution Timeline:</span>
+                      <span className="text-slate-800">{wo.startDate} to {wo.targetCompletionDate}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold">Released By:</span>
+                      <span className="text-slate-800">{wo.releasedBy} ({wo.releasedAt})</span>
+                    </div>
+                  </div>
+
+                  {/* Installments Table */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800">Payment Installments Ledger ({pList.length})</span>
+                      <span className="text-slate-500">
+                        Paid: <strong className="text-emerald-700 font-mono">₹{paid.toLocaleString('en-IN')}</strong> · Balance: <strong className="text-amber-700 font-mono">₹{bal.toLocaleString('en-IN')}</strong>
                       </span>
                     </div>
 
-                    {/* Visual Progress Bar */}
-                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-300 rounded-full ${
-                          wo.progressPercent === 100
-                            ? 'bg-emerald-600'
-                            : wo.progressPercent > 50
-                            ? 'bg-teal-600'
-                            : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${wo.progressPercent}%` }}
-                      />
+                    {pList.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No payments logged yet.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {pList.map((p) => (
+                          <div
+                            key={p.id}
+                            className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800">{p.paymentType}</span>
+                              <span className="text-slate-400">·</span>
+                              <span className="font-mono text-slate-500">UTR: {p.referenceUtr}</span>
+                              <span className="text-slate-400">·</span>
+                              <span className="text-slate-600">{p.paymentMode}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[11px] text-slate-400">{p.paymentDate}</span>
+                              <span className="font-bold font-mono text-emerald-700">₹{p.amountPaid.toLocaleString('en-IN')}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Bar */}
+                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500 font-medium">Update Progress:</span>
+                      {[25, 50, 75, 100].map((pct) => (
+                        <button
+                          key={pct}
+                          onClick={() => updateWorkOrderProgress(wo.id, pct)}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition-colors ${
+                            wo.progressPercent >= pct
+                              ? 'bg-teal-700 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Progress Slider updater for Committee */}
-                    <div className="flex items-center gap-3 pt-1">
-                      <span className="text-[11px] text-slate-500 font-medium">Update Progress:</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={wo.progressPercent}
-                        onChange={(e) => updateWorkOrderProgress(wo.id, Number(e.target.value))}
-                        className="w-48 h-1.5 bg-slate-200 rounded-lg cursor-pointer accent-teal-600"
-                      />
-                      <span className="text-xs font-mono font-bold text-slate-700">{wo.progressPercent}%</span>
-                      {wo.progressPercent < 100 && (
+                    <div className="flex items-center gap-2">
+                      {isAuthorized && wo.approvalStatus !== 'Approved' && (
                         <button
-                          onClick={() => updateWorkOrderProgress(wo.id, 100, 'Completed')}
-                          className="ml-auto text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded cursor-pointer"
+                          onClick={() => setShowSecretaryApprovalModal(wo)}
+                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
                         >
-                          Mark 100% Completed
+                          Secretary Approval Action
                         </button>
                       )}
-                    </div>
-                  </div>
 
-                  {/* Payment Ledger & Balance Calculation Table */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-emerald-600" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          Payment Ledger & Disbursements ({wo.payments.length} Payments)
-                        </h4>
-                      </div>
-                      {balanceDue > 0 && (
+                      {isAuthorized && wo.approvalStatus === 'Approved' && bal > 0 && (
                         <button
                           onClick={() => {
                             setShowPaymentModal(wo.id);
-                            setPaymentAmount(Math.min(balanceDue, 50000));
+                            setPaymentAmount(Math.min(50000, bal));
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
+                          className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
                         >
-                          <Plus className="w-3 h-3" />
-                          <span>Record Payment</span>
+                          Record Payment Log
                         </button>
                       )}
-                    </div>
-
-                    {wo.payments.length === 0 ? (
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-500">
-                        No payments recorded yet for this Work Order. Click &ldquo;Record Payment&rdquo; to log mobilization advance.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold">
-                            <tr>
-                              <th className="py-2 px-3">Date</th>
-                              <th className="py-2 px-3">Stage / Milestone</th>
-                              <th className="py-2 px-3">Amount Paid</th>
-                              <th className="py-2 px-3">Payment Mode</th>
-                              <th className="py-2 px-3">Reference / UTR #</th>
-                              <th className="py-2 px-3">Authorized By</th>
-                              <th className="py-2 px-3">Audit Remarks</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {wo.payments.map((p) => (
-                              <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
-                                <td className="py-2.5 px-3 font-medium text-slate-900 tabular-nums whitespace-nowrap">
-                                  {p.paymentDate}
-                                </td>
-                                <td className="py-2.5 px-3">
-                                  <span className="font-semibold bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px]">
-                                    {p.paymentType}
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3 font-bold text-emerald-800 tabular-nums whitespace-nowrap">
-                                  ₹{p.amountPaid.toLocaleString()}
-                                </td>
-                                <td className="py-2.5 px-3 text-slate-600">{p.paymentMode}</td>
-                                <td className="py-2.5 px-3 font-mono text-[11px] text-teal-700 font-medium whitespace-nowrap">
-                                  {p.referenceUtr}
-                                </td>
-                                <td className="py-2.5 px-3 text-slate-700 text-[11px] whitespace-nowrap">
-                                  {p.approvedBy}
-                                </td>
-                                <td className="py-2.5 px-3 text-slate-500 text-[11px] truncate max-w-xs">
-                                  {p.notes || '—'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Balance Formula Callout */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-600">
-                      <div>
-                        <span>Formula: </span>
-                        <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-[11px] text-slate-800">
-                          Balance Due (₹{balanceDue.toLocaleString()}) = Total WO (₹{wo.totalApprovedAmount.toLocaleString()}) - Disbursed (₹{totalPaid.toLocaleString()})
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>Vendor: <strong>{wo.vendorName}</strong></span>
-                        <span className="text-slate-300">·</span>
-                        <span className="font-mono text-[11px] text-slate-500">GST: {wo.vendorGst}</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -534,171 +730,369 @@ export const ProcurementView: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: Multi-Vendor Quotes Management */}
+      {/* SUB-TAB 3: MULTI-ITEM QUOTATIONS COMPARISON */}
       {activeTab === 'quotes' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Multi-Vendor Project Quotes & Evaluation</h3>
-                <p className="text-xs text-slate-500">
-                  Compare competitive quotes per project before committee approval and official Work Order release.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowNewQuoteModal(true)}
-                className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {quotes.map((q) => (
+              <div
+                key={q.id}
+                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-4"
               >
-                + Add Vendor Quote
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
-                  <tr>
-                    <th className="py-2.5 px-3">Quote ID & Project</th>
-                    <th className="py-2.5 px-3">Vendor Agency</th>
-                    <th className="py-2.5 px-3">Quoted Amount</th>
-                    <th className="py-2.5 px-3">Estimated Time</th>
-                    <th className="py-2.5 px-3">Warranty</th>
-                    <th className="py-2.5 px-3">Evaluation Status</th>
-                    <th className="py-2.5 px-3 text-right">Committee Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {quotes.map((q) => (
-                    <tr key={q.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-3">
-                        <span className="font-mono font-bold text-slate-900 block">{q.id}</span>
-                        <span className="font-semibold text-slate-800">{q.projectTitle}</span>
-                        <span className="text-[11px] text-slate-400 block font-mono">{q.procurementProjectId}</span>
-                      </td>
-                      <td className="py-3 px-3 font-semibold text-slate-900">{q.vendorName}</td>
-                      <td className="py-3 px-3 font-bold text-slate-900 tabular-nums">
-                        ₹{q.quotedAmount.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-3 text-slate-700">{q.estimatedDays} Days</td>
-                      <td className="py-3 px-3 text-slate-700">{q.warrantyMonths} Months</td>
-                      <td className="py-3 px-3">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded border border-slate-200 font-bold">
+                          {q.quoteNumber || q.id}
+                        </span>
                         <span
-                          className={`text-[11px] font-bold px-2 py-0.5 rounded ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             q.status === 'Selected'
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                              ? 'bg-emerald-100 text-emerald-800'
                               : q.status === 'Rejected'
-                              ? 'bg-red-50 text-red-700 border border-red-200'
-                              : 'bg-amber-50 text-amber-800 border border-amber-200'
+                              ? 'bg-slate-100 text-slate-500'
+                              : 'bg-amber-100 text-amber-900'
                           }`}
                         >
                           {q.status}
                         </span>
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        {q.status === 'Pending Review' ? (
-                          <button
-                            onClick={() => setShowReleaseModal(q)}
-                            className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
-                          >
-                            Approve & Release WO &rarr;
-                          </button>
-                        ) : q.status === 'Selected' ? (
-                          <span className="text-emerald-700 font-semibold text-[11px]">Work Order Released</span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">Rejected by Committee</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">{q.projectTitle}</h4>
+                      <p className="text-xs font-semibold text-teal-800 mt-0.5">{q.vendorName}</p>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">Quoted Grand Total</span>
+                      <span className="text-lg font-black font-mono text-slate-900">
+                        ₹{(q.quotedAmount || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Line items snippet if available */}
+                  {q.items && q.items.length > 0 && (
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Line Items Breakdown ({q.items.length}):
+                      </span>
+                      {q.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-[11px] text-slate-600">
+                          <span className="truncate max-w-[200px]">
+                            {it.quantity}x {it.description}
+                          </span>
+                          <span className="font-mono font-semibold text-slate-800">₹{it.lineTotal.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                      <div className="pt-1 border-t border-slate-200 flex justify-between text-[11px] font-bold text-slate-800">
+                        <span>Subtotal (Net): ₹{q.subtotal?.toLocaleString('en-IN')}</span>
+                        <span>GST ({q.gstPercent || 18}%): ₹{q.taxAmount?.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                    {q.scopeOfWork}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                    <span>Warranty: <strong>{q.warrantyMonths} Months</strong></span>
+                    <span>Lead Time: <strong>{q.estimatedDays} Days</strong></span>
+                  </div>
+
+                  {q.committeeNotes && (
+                    <p className="text-[11px] text-slate-500 italic bg-amber-50/50 p-2 rounded border border-amber-100">
+                      Committee: {q.committeeNotes}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-mono">Date: {q.submittedDate}</span>
+                  {isAuthorized && q.status === 'Pending Review' && (
+                    <button
+                      onClick={() => setShowReleaseModal(q)}
+                      className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                    >
+                      Convert to Work Order &rarr;
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Tab 3: Vendor Directory */}
+      {/* SUB-TAB 4: ONBOARDED VENDOR DIRECTORY */}
       {activeTab === 'vendors' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {vendors.map((v) => (
-            <div
-              key={v.id}
-              className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-3 hover:border-slate-300 transition-colors flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {v.id}
-                  </span>
-                  <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                    ★ {v.rating} / 5.0
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-slate-900">{v.name}</h3>
-                <span className="text-xs font-semibold text-slate-600 block">{v.category}</span>
-                <p className="text-xs text-slate-500">
-                  Contact: <strong className="text-slate-800">{v.contactPerson}</strong>
-                </p>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vendors.map((vnd) => (
+              <div
+                key={vnd.id}
+                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 uppercase tracking-wider block mb-1">
+                        {vnd.category}
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900">{vnd.name}</h4>
+                      <p className="text-xs text-slate-500">{vnd.contactPerson}</p>
+                    </div>
+                    <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      ★ {vnd.rating}
+                    </span>
+                  </div>
 
-              <div className="pt-3 border-t border-slate-100 space-y-1 text-xs text-slate-600 font-mono">
-                <p>Phone: <span className="text-teal-700">{v.phone}</span></p>
-                <p>GST: <span className="text-slate-700">{v.gstNumber}</span></p>
+                  <div className="pt-2 border-t border-slate-100 space-y-1 text-xs text-slate-600">
+                    <p>Phone: <strong className="text-slate-800">{vnd.phone}</strong></p>
+                    <p>Email: <strong className="text-slate-800">{vnd.email}</strong></p>
+                    <p>GSTIN: <span className="font-mono text-slate-800">{vnd.gstNumber}</span></p>
+                    {vnd.panNumber && <p>PAN: <span className="font-mono text-slate-800">{vnd.panNumber}</span></p>}
+                    {vnd.bankName && <p>Bank: <span className="text-slate-700">{vnd.bankName}</span></p>}
+                    {vnd.registeredAddress && (
+                      <p className="text-[11px] text-slate-400 line-clamp-2 mt-1">Address: {vnd.registeredAddress}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Vendor ID: {vnd.id}</span>
+                  <span className="text-emerald-700 font-semibold">Verified Vendor</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Modal: Submit New Vendor Quote */}
-      {showNewQuoteModal && (
+      {/* MODAL 1: ONBOARD VENDOR */}
+      {showOnboardVendorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 my-8">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-teal-700 block">MC Procurement</span>
-                <h3 className="text-base font-bold text-slate-900">Add New Vendor Project Quote</h3>
+          <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <Building className="w-5 h-5 text-teal-400" />
+                <h3 className="text-base font-bold">Onboard New Society Vendor</h3>
               </div>
-              <button
-                onClick={() => setShowNewQuoteModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                ✕
+              <button onClick={() => setShowOnboardVendorModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateQuote} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Project Name</label>
-                <input
-                  type="text"
-                  required
-                  value={projectTitle}
-                  onChange={(e) => setProjectTitle(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                />
+            <form onSubmit={handleOnboardVendor} className="p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Company / Enterprise Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Apex Security Solutions Pvt Ltd"
+                    value={vendorName}
+                    onChange={(e) => setVendorName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Category</label>
+                  <select
+                    value={vendorCategory}
+                    onChange={(e) => setVendorCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  >
+                    <option value="STP & Water">STP & Water</option>
+                    <option value="Elevators / Lifts">Elevators / Lifts</option>
+                    <option value="Electrical & DG">Electrical & DG</option>
+                    <option value="Civil Works & Painting">Civil Works & Painting</option>
+                    <option value="Fire & Safety">Fire & Safety</option>
+                    <option value="Security Systems">Security Systems</option>
+                    <option value="Housekeeping">Housekeeping</option>
+                    <option value="Plumbing">Plumbing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mr. Anil Deshmukh"
+                    value={vendorContact}
+                    onChange={(e) => setVendorContact(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Mobile Phone</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 98220 00000"
+                    value={vendorPhone}
+                    onChange={(e) => setVendorPhone(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="contracts@vendor.com"
+                    value={vendorEmail}
+                    onChange={(e) => setVendorEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Project ID</label>
+                  <label className="font-semibold text-slate-700 block mb-1">GSTIN Number (Mandatory for TDS)</label>
                   <input
                     type="text"
                     required
-                    value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                    placeholder="27AAACL1234A1Z5"
+                    value={vendorGst}
+                    onChange={(e) => setVendorGst(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono uppercase text-slate-900"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Select Vendor</label>
+                  <label className="font-semibold text-slate-700 block mb-1">PAN Number</label>
+                  <input
+                    type="text"
+                    placeholder="AAACL1234A"
+                    value={vendorPan}
+                    onChange={(e) => setVendorPan(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono uppercase text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Bank Name & Branch</label>
+                  <input
+                    type="text"
+                    placeholder="HDFC Bank, Baner"
+                    value={vendorBankName}
+                    onChange={(e) => setVendorBankName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Account Number</label>
+                  <input
+                    type="text"
+                    placeholder="50200012345678"
+                    value={vendorBankAcc}
+                    onChange={(e) => setVendorBankAcc(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">IFSC Code</label>
+                  <input
+                    type="text"
+                    placeholder="HDFC0000241"
+                    value={vendorIfsc}
+                    onChange={(e) => setVendorIfsc(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono uppercase text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Registered Business Address</label>
+                <input
+                  type="text"
+                  placeholder="Plot 18, Commercial Plaza, Baner Road, Pune - 411045"
+                  value={vendorAddress}
+                  onChange={(e) => setVendorAddress(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Compliance Document URL / Upload Link</label>
+                <input
+                  type="text"
+                  placeholder="https://docs.cleanaqua.co.in/gst-certificate.pdf"
+                  value={vendorDocUrl}
+                  onChange={(e) => setVendorDocUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOnboardVendorModal(false)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold cursor-pointer shadow-xs"
+                >
+                  Save & Onboard Vendor
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ENTER MULTI-ITEM QUOTE */}
+      {showMultiItemQuoteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-teal-400" />
+                <h3 className="text-base font-bold">Enter Multi-Item Vendor Quotation</h3>
+              </div>
+              <button onClick={() => setShowMultiItemQuoteModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMultiItemQuote} className="p-6 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Project / Tender Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={quoteProjectTitle}
+                    onChange={(e) => setQuoteProjectTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Vendor Selection</label>
                   <select
                     value={quoteVendorId}
                     onChange={(e) => setQuoteVendorId(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold"
                   >
                     {vendors.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.name}
+                        {v.name} ({v.category})
                       </option>
                     ))}
                   </select>
@@ -707,70 +1101,176 @@ export const ProcurementView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Quoted Amount (₹)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">Quote Number</label>
                   <input
-                    type="number"
+                    type="text"
                     required
-                    value={quoteAmount}
-                    onChange={(e) => setQuoteAmount(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                    value={quoteNumber}
+                    onChange={(e) => setQuoteNumber(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Est. Days</label>
+                  <label className="font-semibold text-slate-700 block mb-1">Validity Date</label>
                   <input
-                    type="number"
+                    type="date"
                     required
-                    value={quoteDays}
-                    onChange={(e) => setQuoteDays(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    value={quoteValidity}
+                    onChange={(e) => setQuoteValidity(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Warranty (Mos)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">Tax Rate (GST %)</label>
                   <input
                     type="number"
-                    required
+                    min="0"
+                    max="28"
+                    value={quoteGstPercent}
+                    onChange={(e) => setQuoteGstPercent(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
+                  />
+                </div>
+              </div>
+
+              {/* DYNAMIC LINE ITEMS TABLE */}
+              <div className="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800">Quotation Line Items</span>
+                  <button
+                    type="button"
+                    onClick={handleAddLineItem}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 hover:text-teal-800 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Item</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {lineItems.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-6">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Item Description..."
+                          value={item.description}
+                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-mono text-center"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Unit ₹"
+                          value={item.unitPrice}
+                          onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                          className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-mono text-right"
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between">
+                        <span className="font-mono font-bold text-slate-800 text-[11px] truncate">
+                          ₹{item.lineTotal.toLocaleString('en-IN')}
+                        </span>
+                        {lineItems.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLineItem(index)}
+                            className="text-slate-400 hover:text-red-500 p-1 cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Subtotal & Grand Total Display */}
+                <div className="pt-2 border-t border-slate-200 text-right space-y-1 text-xs">
+                  <div className="text-slate-600">
+                    Subtotal (Excl. Tax): <strong className="font-mono text-slate-900">₹{calculatedSubtotal.toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div className="text-slate-600">
+                    GST ({quoteGstPercent}%): <strong className="font-mono text-slate-900">₹{calculatedTax.toLocaleString('en-IN')}</strong>
+                  </div>
+                  <div className="text-sm font-bold text-teal-800 pt-1 border-t border-slate-200">
+                    Grand Total (Incl. GST): <span className="font-mono">₹{calculatedGrandTotal.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Warranty Period (Months)</label>
+                  <input
+                    type="number"
                     value={quoteWarranty}
                     onChange={(e) => setQuoteWarranty(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Execution Days (Lead Time)</label>
+                  <input
+                    type="number"
+                    value={quoteDays}
+                    onChange={(e) => setQuoteDays(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Technical Scope Summary</label>
+                <label className="font-semibold text-slate-700 block mb-1">Scope of Work Summary</label>
                 <textarea
                   rows={2}
                   value={quoteScope}
                   onChange={(e) => setQuoteScope(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                  placeholder="Detailed breakdown of OEM spares, testing protocols, and labor warranties..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Committee Recommendation / Review Note</label>
+                <label className="font-semibold text-slate-700 block mb-1">PDF Proposal Document Link</label>
                 <input
                   type="text"
-                  value={quoteNotes}
-                  onChange={(e) => setQuoteNotes(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                  placeholder="https://vendor.com/proposals/solitaire-chs-quote-2026.pdf"
+                  value={quotePdfUrl}
+                  onChange={(e) => setQuotePdfUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowNewQuoteModal(false)}
-                  className="px-3.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-medium cursor-pointer"
+                  onClick={() => setShowMultiItemQuoteModal(false)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold cursor-pointer"
+                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold cursor-pointer shadow-xs"
                 >
-                  Save Quote
+                  Save Quotation
                 </button>
               </div>
             </form>
@@ -778,165 +1278,240 @@ export const ProcurementView: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Release Work Order Confirmation */}
-      {showReleaseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-teal-700 block">Work Order Release</span>
-                <h3 className="text-base font-bold text-slate-900">Authorize Official Work Order</h3>
+      {/* MODAL 3: SECRETARY / MC WORK ORDER APPROVAL ACTION */}
+      {showSecretaryApprovalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div className="bg-amber-600 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-white" />
+                <h3 className="text-base font-bold">Secretary / MC Approval Sign-Off</h3>
               </div>
-              <button
-                onClick={() => setShowReleaseModal(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                ✕
+              <button onClick={() => setShowSecretaryApprovalModal(null)} className="text-amber-100 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl space-y-2 text-xs text-teal-950">
-              <p><strong>Selected Project:</strong> {showReleaseModal.projectTitle}</p>
-              <p><strong>Approved Agency:</strong> {showReleaseModal.vendorName}</p>
-              <p><strong>Total Approved Fee:</strong> ₹{showReleaseModal.quotedAmount.toLocaleString()}</p>
-              <p><strong>Warranty:</strong> {showReleaseModal.warrantyMonths} Months comprehensive</p>
-            </div>
+            <div className="p-6 space-y-4 text-xs">
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200/80 space-y-1.5">
+                <span className="font-mono font-bold text-amber-950 text-xs">{showSecretaryApprovalModal.id}</span>
+                <h4 className="text-sm font-bold text-amber-950">{showSecretaryApprovalModal.procurementTitle}</h4>
+                <p className="text-amber-800">
+                  Vendor: <strong>{showSecretaryApprovalModal.vendorName}</strong> · Grand Total: <strong className="font-mono">₹{showSecretaryApprovalModal.totalApprovedAmount.toLocaleString('en-IN')}</strong>
+                </p>
+                <p className="text-amber-900 text-[11px] pt-1 border-t border-amber-200/50">
+                  Payment Terms: {showSecretaryApprovalModal.paymentTerms}
+                </p>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
+              {approvalError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{approvalError}</span>
+                </div>
+              )}
+
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Work Start Date</label>
-                <input
-                  type="date"
-                  value={woStartDate}
-                  onChange={(e) => setWoStartDate(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                <label className="font-bold text-slate-800 block mb-1">
+                  Secretary Comments <span className="text-red-500">* (Mandatory for Audit Trail)</span>
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Enter committee resolution reference, audit justification, or specific revisions required by the vendor..."
+                  value={secretaryComments}
+                  onChange={(e) => setSecretaryComments(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs focus:ring-1 focus:ring-teal-600"
                 />
               </div>
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Target Completion Date</label>
-                <input
-                  type="date"
-                  value={woTargetDate}
-                  onChange={(e) => setWoTargetDate(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
-                />
-              </div>
-            </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowReleaseModal(null)}
-                className="px-3.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmReleaseWO}
-                className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer"
-              >
-                Release Work Order (WO-2026) &rarr;
-              </button>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleSecretaryRequestChanges}
+                  className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-semibold cursor-pointer"
+                >
+                  Request Changes
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSecretaryApprovalModal(null)}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSecretaryApprove}
+                    className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold cursor-pointer shadow-xs"
+                  >
+                    Approve Work Order
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Record Work Order Payment */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-700 block">Payment Disbursement</span>
-                <h3 className="text-base font-bold text-slate-900">Record Work Order Payment</h3>
-                <p className="text-xs text-slate-500 font-mono">Work Order: {showPaymentModal}</p>
+      {/* MODAL 4: CONVERT QUOTE TO WORK ORDER */}
+      {showReleaseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-teal-400" />
+                <h3 className="text-base font-bold">Draft Work Order from Selected Quote</h3>
               </div>
-              <button
-                onClick={() => setShowPaymentModal(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                ✕
+              <button onClick={() => setShowReleaseModal(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleRecordPayment} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Disbursement Stage</label>
-                  <select
-                    value={paymentType}
-                    onChange={(e) => setPaymentType(e.target.value as PaymentStage)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                  >
-                    <option value="Advance">Advance (Mobilization)</option>
-                    <option value="Milestone 1">Milestone 1 (Material / In-Progress)</option>
-                    <option value="Milestone 2">Milestone 2 (Installation)</option>
-                    <option value="Final Settlement">Final Settlement (Inspection Signoff)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Amount to Pay (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold"
-                  />
-                </div>
+            <div className="p-6 space-y-4 text-xs">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <h4 className="font-bold text-slate-900">{showReleaseModal.projectTitle}</h4>
+                <p className="text-slate-600">Vendor: <strong>{showReleaseModal.vendorName}</strong></p>
+                <p className="text-teal-800 font-mono font-bold text-sm">
+                  Grand Total: ₹{showReleaseModal.quotedAmount.toLocaleString('en-IN')}
+                </p>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={woStartDate}
+                  onChange={(e) => setWoStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Target Completion Date</label>
+                <input
+                  type="date"
+                  value={woTargetDate}
+                  onChange={(e) => setWoTargetDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReleaseModal(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReleaseWO}
+                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold cursor-pointer shadow-xs"
+                >
+                  Generate Work Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: ADD PAYMENT LOG */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-teal-400" />
+                <h3 className="text-base font-bold">Record Work Order Payment Installment</h3>
+              </div>
+              <button onClick={() => setShowPaymentModal(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordPayment} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Payment Stage</label>
+                <select
+                  value={paymentType}
+                  onChange={(e) => setPaymentType(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold"
+                >
+                  <option value="Advance">Mobilization Advance</option>
+                  <option value="Milestone 1">Milestone 1 (Material Delivery)</option>
+                  <option value="Milestone 2">Milestone 2 (50% Completion)</option>
+                  <option value="Final Settlement">Final Settlement (Inspection Sign-Off)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Amount Paid (₹)</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono font-bold text-sm"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Payment Channel</label>
+                  <label className="font-semibold text-slate-700 block mb-1">Payment Mode</label>
                   <select
                     value={paymentMode}
                     onChange={(e) => setPaymentMode(e.target.value as any)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                   >
                     <option value="NEFT / RTGS">NEFT / RTGS</option>
-                    <option value="Cheque">Cheque</option>
                     <option value="Society Bank Portal">Society Bank Portal</option>
+                    <option value="Cheque">Cheque</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-slate-700 font-bold mb-1">Reference / UTR Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">Bank Transaction UTR #</label>
                   <input
                     type="text"
-                    placeholder="e.g. HDFC0000241N882910"
+                    required
+                    placeholder="HDFC0000241N..."
                     value={paymentUtr}
                     onChange={(e) => setPaymentUtr(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Disbursement Audit Notes</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Verified 70% installation of blowers before releasing payment."
+                <label className="font-semibold text-slate-700 block mb-1">Disbursement Remarks</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Material delivery verified on site by Facility Supervisor and Treasurer signoff."
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowPaymentModal(null)}
-                  className="px-3.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-medium cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold cursor-pointer"
+                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold cursor-pointer shadow-xs"
                 >
-                  Post Payment to Ledger &rarr;
+                  Confirm & Disburse
                 </button>
               </div>
             </form>

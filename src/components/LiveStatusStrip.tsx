@@ -13,7 +13,7 @@ export const LiveStatusStrip: React.FC = () => {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             {/* STP Status */}
             <button
-              onClick={() => setActiveTab('utilities')}
+              onClick={() => setActiveTab('home')}
               className="flex items-center gap-2 group text-left hover:text-teal-300 transition-colors cursor-pointer"
             >
               <span className="relative flex h-2 w-2">
@@ -27,7 +27,7 @@ export const LiveStatusStrip: React.FC = () => {
 
             {/* Water Supply */}
             <button
-              onClick={() => setActiveTab('utilities')}
+              onClick={() => setActiveTab('home')}
               className="flex items-center gap-2 group text-left hover:text-sky-300 transition-colors cursor-pointer"
             >
               <span className="h-2 w-2 rounded-full bg-sky-400"></span>
@@ -38,7 +38,7 @@ export const LiveStatusStrip: React.FC = () => {
 
             {/* DG Backup */}
             <button
-              onClick={() => setActiveTab('utilities')}
+              onClick={() => setActiveTab('home')}
               className="flex items-center gap-2 group text-left hover:text-amber-300 transition-colors cursor-pointer"
             >
               <span className="h-2 w-2 rounded-full bg-amber-400"></span>
@@ -55,7 +55,7 @@ export const LiveStatusStrip: React.FC = () => {
               <span className="h-2 w-2 rounded-full bg-teal-400"></span>
               <span className="font-semibold text-slate-300 group-hover:text-teal-200">Daily Inspection:</span>
               <span className="text-teal-400 font-medium">Day 2 (31/33 OK)</span>
-              <span className="text-slate-500">· Parvez Logged</span>
+              <span className="text-slate-500">· Supervisor Logged</span>
             </button>
           </div>
 

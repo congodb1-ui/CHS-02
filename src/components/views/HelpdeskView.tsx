@@ -35,6 +35,7 @@ export const HelpdeskView: React.FC = () => {
     setFilterOnlyMyFilings,
     vendors,
     staffList,
+    profiles,
   } = useSociety();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -515,46 +516,67 @@ export const HelpdeskView: React.FC = () => {
               No complaint tickets match your search filters.
             </div>
           ) : (
-            filteredTickets.map((t) => (
-              <div key={t.id} className="py-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-slate-900 text-xs">{t.id}</span>
-                      <span className="text-slate-300">·</span>
-                      <span className="text-xs font-semibold text-slate-800">
-                        {t.tower} - {t.flatNo} ({t.residentName}, {t.residentType})
-                      </span>
-                      <span className="text-slate-300">·</span>
-                      <span className="text-xs font-medium text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
-                        {t.category}
-                      </span>
-                      {t.priority === 'Urgent' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.2 rounded">
-                          Urgent
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-700 leading-relaxed max-w-3xl pt-0.5">
-                      {t.description}
-                    </p>
-                  </div>
+            filteredTickets.map((t) => {
+              const authorProfile = profiles.find(
+                (p) => p.flatNo === t.flatNo || p.name.toLowerCase() === t.residentName.toLowerCase()
+              );
 
-                  <div className="flex items-center gap-2 sm:flex-col sm:items-end shrink-0">
-                    <span
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
-                        t.status === 'Resolved'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : t.status === 'In Progress'
-                          ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      {t.status}
-                    </span>
-                    <span className="text-[11px] text-slate-400 tabular-nums">{t.createdAt}</span>
+              return (
+                <div key={t.id} className="py-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {authorProfile?.avatarUrl ? (
+                        <img
+                          src={authorProfile.avatarUrl}
+                          alt={t.residentName}
+                          className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0 mt-0.5"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center border border-teal-200 shrink-0 mt-0.5">
+                          {t.residentName
+                            ? t.residentName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+                            : 'R'}
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-slate-900 text-xs">{t.id}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="text-xs font-semibold text-slate-800">
+                            {t.tower} - {t.flatNo} ({t.residentName}, {t.residentType})
+                          </span>
+                          <span className="text-slate-300">·</span>
+                          <span className="text-xs font-medium text-teal-800 bg-teal-50 px-2 py-0.5 rounded">
+                            {t.category}
+                          </span>
+                          {t.priority === 'Urgent' && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.2 rounded">
+                              Urgent
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-700 leading-relaxed max-w-3xl pt-0.5">
+                          {t.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:flex-col sm:items-end shrink-0">
+                      <span
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-md border ${
+                          t.status === 'Resolved'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : t.status === 'In Progress'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {t.status}
+                      </span>
+                      <span className="text-[11px] text-slate-400 tabular-nums">{t.createdAt}</span>
+                    </div>
                   </div>
-                </div>
 
                 {/* Resolution Notes / Vendor Information */}
                 {(t.assignedVendor || t.resolutionNotes) && (
@@ -590,7 +612,8 @@ export const HelpdeskView: React.FC = () => {
                   </div>
                 )}
               </div>
-            ))
+            );
+          })
           )}
         </div>
       </div>

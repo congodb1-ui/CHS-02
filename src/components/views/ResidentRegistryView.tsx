@@ -195,7 +195,7 @@ export const ResidentRegistryView: React.FC = () => {
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
             <span className="text-slate-500 text-[11px] block">Towers Configuration</span>
             <span className="text-xs font-bold text-slate-800 block mt-1">
-              Tower A (Maple) · Tower B (Cedar)
+              Tower A · Tower B · Tower C
             </span>
           </div>
         </div>
@@ -292,8 +292,9 @@ export const ResidentRegistryView: React.FC = () => {
                   className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
                 >
                   <option value="All">All Towers</option>
-                  <option value="Tower A">Tower A (Maple)</option>
-                  <option value="Tower B">Tower B (Cedar)</option>
+                  <option value="Tower A">Tower A</option>
+                  <option value="Tower B">Tower B</option>
+                  <option value="Tower C">Tower C</option>
                 </select>
               </div>
 
@@ -346,10 +347,25 @@ export const ResidentRegistryView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-900">
-                          {p.name}
-                          <span className="block text-[10px] font-mono text-slate-400">
-                            {p.memberId}
-                          </span>
+                          <div className="flex items-center gap-2.5">
+                            {p.avatarUrl ? (
+                              <img
+                                src={p.avatarUrl}
+                                alt={p.name}
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-800 font-bold text-xs flex items-center justify-center border border-teal-200 shrink-0">
+                                {p.name ? p.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'U'}
+                              </div>
+                            )}
+                            <div>
+                              <span className="block font-bold text-slate-900">{p.name}</span>
+                              <span className="block text-[10px] font-mono text-slate-400">
+                                {p.memberId}
+                              </span>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <span
@@ -889,9 +905,9 @@ export const ResidentRegistryView: React.FC = () => {
                     onChange={(e) => setEditForm({ ...editForm, tower: e.target.value as TowerId })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
                   >
-                    <option value="Tower A">Tower A (Maple)</option>
-                    <option value="Tower B">Tower B (Cedar)</option>
-                    <option value="Tower C">Tower C (Upcoming)</option>
+                    <option value="Tower A">Tower A</option>
+                    <option value="Tower B">Tower B</option>
+                    <option value="Tower C">Tower C</option>
                   </select>
                 </div>
                 <div>
@@ -902,6 +918,33 @@ export const ResidentRegistryView: React.FC = () => {
                     value={editForm.flatNo || ''}
                     onChange={(e) => setEditForm({ ...editForm, flatNo: e.target.value.toUpperCase() })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Profile Photo (Optional) */}
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Profile Photo (Optional)
+                </label>
+                <div className="flex items-center gap-3">
+                  {editForm.avatarUrl ? (
+                    <img
+                      src={editForm.avatarUrl}
+                      alt="Avatar Preview"
+                      className="w-10 h-10 rounded-full object-cover border border-slate-300 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center border border-slate-300 shrink-0">
+                      {editForm.name ? editForm.name.slice(0, 2).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <input
+                    type="url"
+                    placeholder="Image URL (https://...)"
+                    value={editForm.avatarUrl || ''}
+                    onChange={(e) => setEditForm({ ...editForm, avatarUrl: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white text-xs"
                   />
                 </div>
               </div>

@@ -16,8 +16,8 @@ import {
   Building2,
   User,
   Phone,
-  Sparkles,
-  ChevronRight,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { ALL_SOCIETY_FLATS } from '../types';
 
@@ -37,9 +37,9 @@ export const LoginModal: React.FC = () => {
   // Active form tab
   const [activeTab, setActiveTabMode] = useState<'login' | 'register'>('login');
 
-  // Sign In Form State
-  const [loginIdentifier, setLoginIdentifier] = useState('secretary@solitaire-chs.org');
-  const [loginPassword, setLoginPassword] = useState('Solitaire@2026');
+  // Sign In Form State - Clean manual input, no demo autofills
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -51,9 +51,10 @@ export const LoginModal: React.FC = () => {
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [regPhone, setRegPhone] = useState('');
-  const [regTower, setRegTower] = useState<'Tower A' | 'Tower B'>('Tower A');
-  const [regFlat, setRegFlat] = useState('A-103');
+  const [regTower, setRegTower] = useState<'Tower A' | 'Tower B' | 'Tower C'>('Tower A');
+  const [regFlat, setRegFlat] = useState('A-101');
   const [regOwnership, setRegOwnership] = useState<'Owner' | 'Tenant'>('Owner');
+  const [regAvatarUrl, setRegAvatarUrl] = useState('');
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState('');
   const [regSuccess, setRegSuccess] = useState('');
@@ -81,10 +82,12 @@ export const LoginModal: React.FC = () => {
 
   if (!isLoginModalOpen) return null;
 
-  // Predefined flats strictly filtered by selected tower
-  const availableFlatsForTower = ALL_SOCIETY_FLATS.filter((f) =>
-    regTower === 'Tower A' ? f.startsWith('A-') : f.startsWith('B-')
-  );
+  // Predefined flats strictly filtered by selected tower (Tower A, Tower B, or Tower C)
+  const availableFlatsForTower = ALL_SOCIETY_FLATS.filter((f) => {
+    if (regTower === 'Tower A') return f.startsWith('A-');
+    if (regTower === 'Tower B') return f.startsWith('B-');
+    return f.startsWith('C-');
+  });
 
   // Check if flat is already occupied in society registry
   const isFlatOccupied = (flatNo: string) => {
@@ -120,10 +123,15 @@ export const LoginModal: React.FC = () => {
     }
   };
 
-  const handleQuickFill = (identifier: string, pwd = 'Solitaire@2026') => {
-    setLoginIdentifier(identifier);
-    setLoginPassword(pwd);
-    setLoginError('');
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setRegAvatarUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -144,6 +152,7 @@ export const LoginModal: React.FC = () => {
         email: regEmail.trim(),
         password: regPassword,
         phone: regPhone.trim(),
+        avatarUrl: regAvatarUrl.trim(),
         tower: regTower,
         flatNo: regFlat,
         ownershipType: regOwnership,
@@ -159,6 +168,7 @@ export const LoginModal: React.FC = () => {
         setRegEmail('');
         setRegPassword('');
         setRegPhone('');
+        setRegAvatarUrl('');
       }
     } catch (err: any) {
       setRegError(err.message || 'Registration failed. Please try again.');
@@ -169,16 +179,16 @@ export const LoginModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeLoginModal();
       }}
     >
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
-        {/* Executive Modal Header */}
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
         <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-teal-600 rounded-xl shadow-sm text-white">
+            <div className="p-2.5 bg-teal-600 rounded-xl shadow-xs text-white">
               <KeyRound className="w-5 h-5" />
             </div>
             <div>
@@ -190,7 +200,7 @@ export const LoginModal: React.FC = () => {
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-[11px] text-emerald-300 font-medium">
-                  {isSupabaseOnline ? 'Supabase Authentication Active' : 'Authorized Production Access'}
+                  {isSupabaseOnline ? 'Supabase Authentication Active' : 'Authorized Secure Access'}
                 </span>
                 <span className="text-slate-500 text-[10px]">· SSL 256-bit</span>
               </div>
@@ -205,7 +215,7 @@ export const LoginModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Executive Tab Switcher */}
+        {/* Tab Switcher */}
         <div className="flex border-b border-slate-200 bg-slate-50 shrink-0">
           <button
             type="button"
@@ -247,12 +257,12 @@ export const LoginModal: React.FC = () => {
 
         {/* Scrollable Form Content Body */}
         <div className="overflow-y-auto max-h-[calc(88vh-130px)] p-6 text-xs">
-          {/* TAB 1: AUTHORIZED PORTAL LOGIN */}
+          {/* TAB 1: AUTHORIZED PORTAL LOGIN (Clean Production Version) */}
           {activeTab === 'login' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-slate-600 pb-1">
+              <div className="text-slate-600 pb-1">
                 <span className="font-medium text-slate-600">
-                  Enter your registered official email, flat number (e.g. B-801, A-402), or member ID.
+                  Enter your registered society email address, flat number (e.g. A-402, B-801, C-302), or member ID to sign in.
                 </span>
               </div>
 
@@ -262,13 +272,13 @@ export const LoginModal: React.FC = () => {
                   <div>
                     <p className="font-semibold text-red-800">{loginError}</p>
                     <p className="text-[11px] text-red-600 mt-0.5">
-                      Hint: You can select an authorized portfolio below to auto-populate credentials.
+                      Ensure your email or flat number is registered and your password is typed correctly.
                     </p>
                   </div>
                 </div>
               )}
 
-              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
                 {/* Identifier Input */}
                 <div className="space-y-1.5">
                   <label className="font-semibold text-slate-800 block text-xs">
@@ -279,10 +289,10 @@ export const LoginModal: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. secretary@solitaire-chs.org or B-801"
+                      placeholder="e.g. resident@example.com or A-402"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
                     />
                   </div>
                 </div>
@@ -300,7 +310,7 @@ export const LoginModal: React.FC = () => {
                       placeholder="Enter account password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2 bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
+                      className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
                     />
                     <button
                       type="button"
@@ -313,7 +323,7 @@ export const LoginModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Keep signed in */}
+                {/* Remember session */}
                 <div className="flex items-center justify-between pt-0.5">
                   <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 font-medium">
                     <input
@@ -324,13 +334,10 @@ export const LoginModal: React.FC = () => {
                     />
                     <span>Remember session on this device</span>
                   </label>
-                  <span className="text-[11px] text-teal-700 font-medium hover:underline cursor-pointer">
-                    Security Assistance
-                  </span>
                 </div>
 
-                {/* Submit Button */}
-                <div className="pt-1.5">
+                {/* Sign In Button */}
+                <div className="pt-2">
                   <button
                     type="submit"
                     disabled={loginLoading}
@@ -351,84 +358,8 @@ export const LoginModal: React.FC = () => {
                 </div>
               </form>
 
-              {/* Authorized Portfolios Quick Select */}
-              <div className="pt-3 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    Authorized Society Accounts
-                  </span>
-                  <span className="text-[10px] text-slate-400">Click to load portfolio credentials</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('secretary@solitaire-chs.org')}
-                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
-                        MC Secretary
-                      </span>
-                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
-                        B-801
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Pooja Hegde-Patil</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('admin@solitaire-chs.org')}
-                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
-                        Estate Administrator
-                      </span>
-                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
-                        A-1202
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Sanjeev Mathur</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('rajesh.sharma@solitaire-chs.org')}
-                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
-                        Resident Member
-                      </span>
-                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
-                        A-402
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Rajesh Sharma (Owner)</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickFill('supervisor@solitaire-chs.org')}
-                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
-                        Facility Supervisor
-                      </span>
-                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
-                        A-101
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Estate Operations</p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Confidentiality Footer Notice */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-slate-500 text-[11px] leading-relaxed flex items-start gap-2">
+              {/* Security Disclaimer Box - Clean padding below Sign In action */}
+              <div className="mt-4 p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-slate-500 text-[11px] leading-relaxed flex items-start gap-2">
                 <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
                 <span>
                   Portal access is restricted to verified residents of Kool Homes Solitaire CHS. If you haven't registered your flat yet, switch to the <strong>New Flat Registration</strong> tab above.
@@ -444,7 +375,7 @@ export const LoginModal: React.FC = () => {
                 <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block font-semibold">Strict Single-Primary-Member Policy:</strong>
-                  <span>Solitaire CHS bylaws permit exactly 1 verified primary account per flat. If your flat is already claimed, the request will be flagged.</span>
+                  <span>Solitaire CHS bylaws permit exactly 1 verified primary account per flat across Tower A, Tower B, and Tower C.</span>
                 </div>
               </div>
 
@@ -476,7 +407,7 @@ export const LoginModal: React.FC = () => {
                 </div>
               )}
 
-              {/* Tower & Flat Selector */}
+              {/* Tower & Flat Selector - Standardized to Tower A, Tower B, Tower C */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-800 block mb-1">
@@ -485,14 +416,15 @@ export const LoginModal: React.FC = () => {
                   <select
                     value={regTower}
                     onChange={(e) => {
-                      const tower = e.target.value as 'Tower A' | 'Tower B';
+                      const tower = e.target.value as 'Tower A' | 'Tower B' | 'Tower C';
                       setRegTower(tower);
-                      setRegFlat(tower === 'Tower A' ? 'A-103' : 'B-103');
+                      setRegFlat(tower === 'Tower A' ? 'A-101' : tower === 'Tower B' ? 'B-101' : 'C-101');
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-red-300 focus:outline-none text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-teal-600 focus:outline-none text-xs"
                   >
-                    <option value="Tower A">Tower A (Maple)</option>
-                    <option value="Tower B">Tower B (Cedar)</option>
+                    <option value="Tower A">Tower A</option>
+                    <option value="Tower B">Tower B</option>
+                    <option value="Tower C">Tower C</option>
                   </select>
                 </div>
 
@@ -503,7 +435,7 @@ export const LoginModal: React.FC = () => {
                   <select
                     value={regFlat}
                     onChange={(e) => setRegFlat(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:border-red-300 focus:outline-none text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:border-teal-600 focus:outline-none text-xs"
                   >
                     {availableFlatsForTower.map((flat) => {
                       const occupied = isFlatOccupied(flat);
@@ -531,7 +463,7 @@ export const LoginModal: React.FC = () => {
                       placeholder="e.g. Anand Kulkarni"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-teal-600 focus:outline-none text-xs font-medium"
                     />
                   </div>
                 </div>
@@ -543,7 +475,7 @@ export const LoginModal: React.FC = () => {
                   <select
                     value={regOwnership}
                     onChange={(e) => setRegOwnership(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-red-300 focus:outline-none text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-teal-600 focus:outline-none text-xs"
                   >
                     <option value="Owner">Flat Owner</option>
                     <option value="Tenant">Registered Tenant</option>
@@ -565,7 +497,7 @@ export const LoginModal: React.FC = () => {
                       placeholder="resident@example.com"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-teal-600 focus:outline-none text-xs font-medium"
                     />
                   </div>
                 </div>
@@ -582,8 +514,61 @@ export const LoginModal: React.FC = () => {
                       placeholder="+91 98220 00000"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-teal-600 focus:outline-none text-xs font-medium"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* MODULE 6: Profile Photo (Optional) */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <label className="font-semibold text-slate-800 block text-xs">
+                  Profile Photo (Optional)
+                </label>
+                <div className="flex items-center gap-3">
+                  {regAvatarUrl ? (
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-teal-600 shrink-0">
+                      <img
+                        src={regAvatarUrl}
+                        alt="Profile preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRegAvatarUrl('')}
+                        className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0 border border-slate-300">
+                      <Camera className="w-5 h-5 text-slate-400" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      type="url"
+                      placeholder="Paste image URL (https://...)"
+                      value={regAvatarUrl}
+                      onChange={(e) => setRegAvatarUrl(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-medium focus:border-teal-600 focus:outline-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-300 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer shadow-2xs">
+                        <Upload className="w-3 h-3 text-slate-500" />
+                        <span>Upload File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-[10px] text-slate-400">JPG, PNG, WebP up to 2MB</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -602,7 +587,7 @@ export const LoginModal: React.FC = () => {
                     placeholder="Minimum 6 characters"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
+                    className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-teal-600 focus:outline-none text-xs font-medium"
                   />
                   <button
                     type="button"

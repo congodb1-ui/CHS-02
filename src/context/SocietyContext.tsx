@@ -26,6 +26,8 @@ import {
   CommunityPoll,
   SocietyProfileDetails,
   ROLE_LABELS,
+  EmergencyContact,
+  SocietyGalleryItem,
 } from '../types';
 import {
   INITIAL_NOTICES,
@@ -53,6 +55,8 @@ import {
   INITIAL_AUDIT_LOGS,
   INITIAL_VISITOR_PASSES,
   INITIAL_POLLS,
+  INITIAL_EMERGENCY_CONTACTS,
+  INITIAL_GALLERY_ITEMS,
 } from '../data/initialData';
 import {
   supabase,
@@ -63,6 +67,10 @@ import {
   mapRecordToVehicleRow,
   mapWorkOrderRowToModel,
   mapQuoteRowToModel,
+  mapEmergencyContactRowToModel,
+  mapEmergencyContactModelToRow,
+  mapGalleryRowToModel,
+  mapGalleryModelToRow,
 } from '../lib/supabase';
 
 interface SocietyContextType {
@@ -104,6 +112,17 @@ interface SocietyContextType {
   addTankerLog: (tanker: Omit<WaterTankerLog, 'id' | 'status'>) => void;
   isEmergencyOpen: boolean;
   setIsEmergencyOpen: (open: boolean) => void;
+  emergencyContacts: EmergencyContact[];
+  fetchEmergencyContacts: () => Promise<void>;
+  addEmergencyContact: (contact: Omit<EmergencyContact, 'id' | 'createdAt'>) => Promise<string>;
+  updateEmergencyContact: (id: string, updates: Partial<EmergencyContact>) => Promise<void>;
+  deleteEmergencyContact: (id: string) => Promise<void>;
+  // Society Photo Gallery
+  galleryItems: SocietyGalleryItem[];
+  fetchGalleryItems: () => Promise<void>;
+  addGalleryItem: (item: Omit<SocietyGalleryItem, 'id' | 'createdAt'>) => Promise<string>;
+  updateGalleryItem: (id: string, updates: Partial<SocietyGalleryItem>) => Promise<void>;
+  deleteGalleryItem: (id: string) => Promise<void>;
   isBookingModalOpen: boolean;
   setIsBookingModalOpen: (open: boolean) => void;
   isAiModalOpen: boolean;
@@ -124,6 +143,7 @@ interface SocietyContextType {
     name: string;
     email: string;
     phone: string;
+    avatarUrl?: string;
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
@@ -201,6 +221,7 @@ interface SocietyContextType {
     password: string;
     name: string;
     phone: string;
+    avatarUrl?: string;
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
@@ -325,6 +346,28 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [activeTab, setActiveTabState] = useState<string>('home');
   const [isEmergencyOpen, setIsEmergencyOpen] = useState<boolean>(false);
+
+  // Dynamic Emergency Contacts State (with localStorage cache & Supabase sync)
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>(() => {
+    try {
+      const saved = localStorage.getItem('solitaire_emergency_contacts_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return INITIAL_EMERGENCY_CONTACTS;
+  });
+
+  // Society Photo Gallery State (Public vs Private)
+  const [galleryItems, setGalleryItems] = useState<SocietyGalleryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('solitaire_gallery_items_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return INITIAL_GALLERY_ITEMS;
+  });
   const [isBookingModalOpen, setIsBookingModalOpen] = useState<boolean>(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [initialAiPrompt, setInitialAiPrompt] = useState<string>('');
@@ -675,6 +718,162 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
+  const fetchEmergencyContacts = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .order('display_order', { ascending: true });
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapEmergencyContactRowToModel);
+        setEmergencyContacts(mapped);
+        localStorage.setItem('solitaire_emergency_contacts_v1', JSON.stringify(mapped));
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch emergency_contacts table:', err);
+    }
+  }, []);
+
+  const fetchGalleryItems = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase
+        .from('society_gallery')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapGalleryRowToModel);
+        setGalleryItems(mapped);
+        localStorage.setItem('solitaire_gallery_items_v1', JSON.stringify(mapped));
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch society_gallery table:', err);
+    }
+  }, []);
+
+  const addEmergencyContact = async (contact: Omit<EmergencyContact, 'id' | 'createdAt'>): Promise<string> => {
+    const newId = `emg-${Date.now()}`;
+    const newContact: EmergencyContact = {
+      ...contact,
+      id: newId,
+      createdAt: new Date().toISOString(),
+    };
+    setEmergencyContacts((prev) => {
+      const updated = [...prev, newContact].sort((a, b) => a.displayOrder - b.displayOrder);
+      localStorage.setItem('solitaire_emergency_contacts_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('emergency_contacts').insert([mapEmergencyContactModelToRow(newContact)]);
+      } catch (err) {
+        console.warn('[Supabase] Error inserting emergency contact:', err);
+      }
+    }
+    return newId;
+  };
+
+  const updateEmergencyContact = async (id: string, updates: Partial<EmergencyContact>) => {
+    setEmergencyContacts((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c)).sort((a, b) => a.displayOrder - b.displayOrder);
+      localStorage.setItem('solitaire_emergency_contacts_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        const dbUpdates: any = {};
+        if (updates.category !== undefined) dbUpdates.category = updates.category;
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle;
+        if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+        if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
+        await supabase.from('emergency_contacts').update(dbUpdates).eq('id', id);
+      } catch (err) {
+        console.warn('[Supabase] Error updating emergency contact:', err);
+      }
+    }
+  };
+
+  const deleteEmergencyContact = async (id: string) => {
+    setEmergencyContacts((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      localStorage.setItem('solitaire_emergency_contacts_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('emergency_contacts').delete().eq('id', id);
+      } catch (err) {
+        console.warn('[Supabase] Error deleting emergency contact:', err);
+      }
+    }
+  };
+
+  const addGalleryItem = async (item: Omit<SocietyGalleryItem, 'id' | 'createdAt'>): Promise<string> => {
+    const newId = `gal-${Date.now()}`;
+    const newItem: SocietyGalleryItem = {
+      ...item,
+      id: newId,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setGalleryItems((prev) => {
+      const updated = [newItem, ...prev];
+      localStorage.setItem('solitaire_gallery_items_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('society_gallery').insert([mapGalleryModelToRow(newItem)]);
+      } catch (err) {
+        console.warn('[Supabase] Error inserting gallery item:', err);
+      }
+    }
+    return newId;
+  };
+
+  const updateGalleryItem = async (id: string, updates: Partial<SocietyGalleryItem>) => {
+    setGalleryItems((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, ...updates } : item));
+      localStorage.setItem('solitaire_gallery_items_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        const dbUpdates: any = {};
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
+        if (updates.category !== undefined) dbUpdates.category = updates.category;
+        if (updates.visibility !== undefined) dbUpdates.visibility = updates.visibility;
+        await supabase.from('society_gallery').update(dbUpdates).eq('id', id);
+      } catch (err) {
+        console.warn('[Supabase] Error updating gallery item:', err);
+      }
+    }
+  };
+
+  const deleteGalleryItem = async (id: string) => {
+    setGalleryItems((prev) => {
+      const updated = prev.filter((item) => item.id !== id);
+      localStorage.setItem('solitaire_gallery_items_v1', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('society_gallery').delete().eq('id', id);
+      } catch (err) {
+        console.warn('[Supabase] Error deleting gallery item:', err);
+      }
+    }
+  };
+
   // Initial load from Supabase tables
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -682,12 +881,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       fetchVehiclesFromSupabase();
       fetchWorkOrdersFromSupabase();
       fetchProcurementFromSupabase();
+      fetchEmergencyContacts();
+      fetchGalleryItems();
     }
   }, [
     fetchMembersFromSupabase,
     fetchVehiclesFromSupabase,
     fetchWorkOrdersFromSupabase,
     fetchProcurementFromSupabase,
+    fetchEmergencyContacts,
+    fetchGalleryItems,
   ]);
 
   // Real-time table listeners
@@ -709,6 +912,12 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .on('postgres_changes', { event: '*', schema: 'public', table: 'procurement_orders' }, () => {
           fetchProcurementFromSupabase();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'emergency_contacts' }, () => {
+          fetchEmergencyContacts();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'society_gallery' }, () => {
+          fetchGalleryItems();
+        })
         .subscribe();
 
       return () => {
@@ -722,6 +931,8 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     fetchVehiclesFromSupabase,
     fetchWorkOrdersFromSupabase,
     fetchProcurementFromSupabase,
+    fetchEmergencyContacts,
+    fetchGalleryItems,
   ]);
 
   // =========================================================================
@@ -847,6 +1058,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     name: string;
     email: string;
     phone: string;
+    avatarUrl?: string;
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
@@ -896,6 +1108,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       name: data.name,
       email: data.email,
       phone: data.phone,
+      avatarUrl: data.avatarUrl || '',
       tower: data.tower,
       flatNo: cleanFlat,
       role: 'resident',
@@ -1085,6 +1298,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     password: string;
     name: string;
     phone: string;
+    avatarUrl?: string;
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
@@ -1096,6 +1310,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       name: params.name,
       email: params.email,
       phone: params.phone,
+      avatarUrl: params.avatarUrl,
       tower: params.tower,
       flatNo: params.flatNo,
       ownershipType: params.ownershipType,
@@ -1116,6 +1331,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
             data: {
               name: params.name,
               phone: params.phone,
+              avatar_url: params.avatarUrl || '',
               tower: params.tower,
               flat_no: params.flatNo.trim().toUpperCase(),
               ownership_type: params.ownershipType,
@@ -2155,6 +2371,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addTankerLog,
         isEmergencyOpen,
         setIsEmergencyOpen,
+        emergencyContacts,
+        fetchEmergencyContacts,
+        addEmergencyContact,
+        updateEmergencyContact,
+        deleteEmergencyContact,
+        galleryItems,
+        fetchGalleryItems,
+        addGalleryItem,
+        updateGalleryItem,
+        deleteGalleryItem,
         isBookingModalOpen,
         setIsBookingModalOpen,
         isAiModalOpen,

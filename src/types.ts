@@ -20,10 +20,11 @@ export const ROLE_LABELS: Record<string, string> = {
 
 export type TowerId = 'Tower A' | 'Tower B' | 'Tower C';
 
-// 120 Predefined flats across Towers A and B (15 floors, 4 flats per floor: 101 to 1504)
+// 180 Predefined flats across Towers A, B, and C (15 floors, 4 flats per floor: 101 to 1504)
 export const ALL_SOCIETY_FLATS: string[] = [
   ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `A-${(f + 1) * 100 + u}`)).flat(),
   ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `B-${(f + 1) * 100 + u}`)).flat(),
+  ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `C-${(f + 1) * 100 + u}`)).flat(),
 ];
 
 // Supabase Units / Flats Schema Representation
@@ -46,12 +47,58 @@ export interface SocietyUnit {
   created_at?: string;
 }
 
+// Emergency Contacts Dynamic Supabase Schema
+export interface EmergencyContact {
+  id: string;
+  category: string;
+  title: string;
+  subtitle: string;
+  phone: string;
+  displayOrder: number;
+  createdAt?: string;
+}
+
+export interface SupabaseEmergencyContactRow {
+  id: string;
+  category: string;
+  title: string;
+  subtitle: string;
+  phone: string;
+  display_order: number;
+  created_at?: string;
+}
+
+// Society Photo Gallery Schema (Public vs Private Controls)
+export interface SocietyGalleryItem {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  category?: string;
+  visibility: 'Public' | 'Private';
+  uploadedBy?: string;
+  createdAt: string;
+}
+
+export interface SupabaseGalleryRow {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  category?: string;
+  visibility: 'Public' | 'Private' | string;
+  uploaded_by?: string;
+  created_at?: string;
+}
+
 // Supabase Database Row Types (exact table definitions for Supabase PostgreSQL)
 export interface SupabaseMemberRow {
   id: string;
   member_id?: string;
   email: string;
   name: string;
+  avatar_url?: string;
+  avatarUrl?: string;
   tower: TowerId | string;
   flat_no: string;
   role: UserRole | string;
@@ -362,6 +409,8 @@ export interface MemberProfile {
   member_id?: string;
   email: string;
   name: string;
+  avatarUrl?: string;
+  avatar_url?: string;
   tower: TowerId;
   flatNo: string; // Strictly unique per flat constraint!
   flat_no?: string;

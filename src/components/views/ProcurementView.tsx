@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSociety } from '../../context/SocietyContext';
 import {
   WorkOrder,
@@ -44,6 +44,7 @@ import {
 export const ProcurementView: React.FC = () => {
   const {
     role,
+    setActiveTab: setGlobalActiveTab,
     workOrders,
     quotes,
     vendors,
@@ -60,6 +61,37 @@ export const ProcurementView: React.FC = () => {
     userName,
     currentMemberId,
   } = useSociety();
+
+  const isAdminOrMC = role === 'admin' || role === 'mc_member' || role === 'secretary';
+
+  // Access Gate Enforcement: Redirect standard residents away from Procurement
+  useEffect(() => {
+    if (!isAdminOrMC) {
+      setGlobalActiveTab('home');
+    }
+  }, [isAdminOrMC, setGlobalActiveTab]);
+
+  if (!isAdminOrMC) {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center space-y-4 bg-white border border-red-200 rounded-2xl shadow-sm my-12 animate-in fade-in duration-150">
+        <div className="w-14 h-14 rounded-full bg-red-100 text-red-700 flex items-center justify-center mx-auto">
+          <Lock className="w-7 h-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Procurement Access Restricted</h2>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Society vendor directories, quotation comparisons, financial tenders, and Work Orders are confidential and restricted strictly to authorized Society Administrators and Managing Committee members.
+        </p>
+        <div className="pt-2">
+          <button
+            onClick={() => setGlobalActiveTab('home')}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const [activeTab, setActiveTab] = useState<'summary' | 'work_orders' | 'quotes' | 'vendors'>('summary');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');

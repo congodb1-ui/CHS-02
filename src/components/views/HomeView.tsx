@@ -23,6 +23,7 @@ import {
   Car,
   AlertTriangle,
   FolderOpen,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { PublicLandingView } from './PublicLandingView';
 import { CommunityPollsSection } from '../polls/CommunityPollsSection';
@@ -141,6 +142,13 @@ export const HomeView: React.FC = () => {
                 <span>Book Amenities</span>
               </button>
               <button
+                onClick={() => setActiveTab('gallery')}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-xs text-white border border-white/20 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              >
+                <ImageIcon className="w-4 h-4 text-teal-300" />
+                <span>Society Gallery</span>
+              </button>
+              <button
                 onClick={() => setActiveTab('documents')}
                 className="px-4 py-2.5 text-slate-300 hover:text-white text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
@@ -157,20 +165,20 @@ export const HomeView: React.FC = () => {
       <section className="space-y-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-            Towers Configuration & Predefined Units (A-101 to B-1504)
+            Towers Configuration & Predefined Units (Tower A, Tower B, Tower C)
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            120 Residential units strictly bound by the 1 Member Per Flat rule.
+            180 Residential units strictly bound by the 1 Member Per Flat rule.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Tower A */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-slate-300 transition-colors space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider block">Wing 1</span>
-                <h3 className="text-lg font-bold text-slate-900">Tower A (Maple)</h3>
+                <h3 className="text-lg font-bold text-slate-900">Tower A</h3>
               </div>
               <span className="text-xs font-semibold px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
                 60 Units (101 to 1504)
@@ -190,7 +198,7 @@ export const HomeView: React.FC = () => {
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider block">Wing 2</span>
-                <h3 className="text-lg font-bold text-slate-900">Tower B (Cedar)</h3>
+                <h3 className="text-lg font-bold text-slate-900">Tower B</h3>
               </div>
               <span className="text-xs font-semibold px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
                 60 Units (101 to 1504)
@@ -202,6 +210,26 @@ export const HomeView: React.FC = () => {
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>Occupancy: <strong className="text-slate-800 tabular-nums">95% Verified</strong></span>
               <span>FastTag Bays: <strong className="text-slate-800 tabular-nums">P-B-101 to P-B-130</strong></span>
+            </div>
+          </div>
+
+          {/* Tower C */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:border-slate-300 transition-colors space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Wing 3</span>
+                <h3 className="text-lg font-bold text-slate-900">Tower C</h3>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-md">
+                60 Units (101 to 1504)
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              60 Residential units spanning 15 floors. Modern layout with dual high-speed elevators, pressurized fire refuge shafts, and dedicated EV charging bays.
+            </p>
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Occupancy: <strong className="text-slate-800 tabular-nums">Handover Active</strong></span>
+              <span>FastTag Bays: <strong className="text-slate-800 tabular-nums">P-C-101 to P-C-130</strong></span>
             </div>
           </div>
         </div>

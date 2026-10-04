@@ -397,9 +397,9 @@ export const DirectoryView: React.FC = () => {
                       onChange={(e) => setNewTower(e.target.value as TowerId)}
                       className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
                     >
-                      <option value="Tower A">Tower A (Maple)</option>
-                      <option value="Tower B">Tower B (Cedar)</option>
-                      <option value="Tower C">Tower C (Oak)</option>
+                      <option value="Tower A">Tower A</option>
+                      <option value="Tower B">Tower B</option>
+                      <option value="Tower C">Tower C</option>
                     </select>
                   </div>
                   <div>

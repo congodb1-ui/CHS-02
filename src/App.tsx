@@ -20,6 +20,7 @@ import { SupervisorInspectionView } from './components/views/SupervisorInspectio
 import { DirectoryView } from './components/views/DirectoryView';
 import { ProcurementView } from './components/views/ProcurementView';
 import { ResidentRegistryView } from './components/views/ResidentRegistryView';
+import { SocietyGalleryView } from './components/views/SocietyGalleryView';
 import { Footer } from './components/Footer';
 import { EmergencyModal } from './components/EmergencyModal';
 import { BookingModal } from './components/BookingModal';
@@ -50,12 +51,20 @@ const AppContent: React.FC = () => {
       {/* Main Viewport Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {!isAuthenticated ? (
-          <PublicLandingView
-            onOpenLogin={() => openLoginModal('login')}
-            onOpenRegister={() => openLoginModal('register')}
-          />
+          activeTab === 'gallery' ? (
+            <SocietyGalleryView />
+          ) : (
+            <PublicLandingView
+              onOpenLogin={() => openLoginModal('login')}
+              onOpenRegister={() => openLoginModal('register')}
+            />
+          )
         ) : (isPendingApproval || isRejected) ? (
-          <PendingAccessView />
+          activeTab === 'gallery' ? (
+            <SocietyGalleryView />
+          ) : (
+            <PendingAccessView />
+          )
         ) : (
           <>
             {activeTab === 'home' && <HomeView />}
@@ -64,6 +73,7 @@ const AppContent: React.FC = () => {
               <ResidentRegistryView />
             )}
             {(activeTab === 'vehicles' || activeTab === 'parking') && <ParkingView />}
+            {activeTab === 'gallery' && <SocietyGalleryView />}
             {(activeTab === 'procurement') && <ProcurementView />}
             {/* Contextual & direct dashboard links */}
             {activeTab === 'amenities' && <AmenitiesView />}

@@ -5,6 +5,10 @@ import {
   WorkOrder,
   VendorQuote,
   SocietyUnit,
+  EmergencyContact,
+  SupabaseEmergencyContactRow,
+  SocietyGalleryItem,
+  SupabaseGalleryRow,
   SupabaseMemberRow,
   SupabaseUnitRow,
   SupabaseProcurementOrderRow,
@@ -48,6 +52,7 @@ export function mapMemberRowToProfile(row: Partial<SupabaseMemberRow>): MemberPr
     memberId: row.member_id || (row as any).memberId || `SOL-${row.flat_no || 'GEN'}`,
     email: row.email || '',
     name: row.name || 'Resident',
+    avatarUrl: row.avatar_url || (row as any).avatarUrl || '',
     tower: (row.tower as any) || 'Tower A',
     flatNo: row.flat_no || (row as any).flatNo || 'A-101',
     role: (row.role as any) || 'resident',
@@ -68,6 +73,7 @@ export function mapProfileToMemberRow(profile: MemberProfile): SupabaseMemberRow
     member_id: profile.memberId,
     email: profile.email,
     name: profile.name,
+    avatar_url: profile.avatarUrl || '',
     tower: profile.tower,
     flat_no: profile.flatNo,
     role: profile.role,
@@ -170,6 +176,54 @@ export function mapQuoteRowToModel(row: Partial<SupabaseProcurementOrderRow>): V
     scopeOfWork: row.scope_of_work || (row as any).scopeOfWork || '',
     status: (row.status as any) || 'Pending Review',
     committeeNotes: row.committee_notes || (row as any).committeeNotes,
+  };
+}
+
+export function mapEmergencyContactRowToModel(row: Partial<SupabaseEmergencyContactRow>): EmergencyContact {
+  return {
+    id: row.id || `emg-${Date.now()}`,
+    category: row.category || 'General Emergency',
+    title: row.title || 'Emergency Contact',
+    subtitle: row.subtitle || '',
+    phone: row.phone || '',
+    displayOrder: Number(row.display_order ?? 99),
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+}
+
+export function mapEmergencyContactModelToRow(model: EmergencyContact): SupabaseEmergencyContactRow {
+  return {
+    id: model.id,
+    category: model.category,
+    title: model.title,
+    subtitle: model.subtitle,
+    phone: model.phone,
+    display_order: model.displayOrder,
+  };
+}
+
+export function mapGalleryRowToModel(row: Partial<SupabaseGalleryRow>): SocietyGalleryItem {
+  return {
+    id: row.id || `gal-${Date.now()}`,
+    title: row.title || 'Society Image',
+    description: row.description || '',
+    imageUrl: row.image_url || '',
+    category: row.category || 'Amenities',
+    visibility: (row.visibility as any) === 'Private' ? 'Private' : 'Public',
+    uploadedBy: row.uploaded_by || 'Estate Office',
+    createdAt: row.created_at || new Date().toISOString().split('T')[0],
+  };
+}
+
+export function mapGalleryModelToRow(model: SocietyGalleryItem): SupabaseGalleryRow {
+  return {
+    id: model.id,
+    title: model.title,
+    description: model.description,
+    image_url: model.imageUrl,
+    category: model.category || 'Amenities',
+    visibility: model.visibility,
+    uploaded_by: model.uploadedBy,
   };
 }
 

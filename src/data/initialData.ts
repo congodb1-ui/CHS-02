@@ -23,7 +23,16 @@ import {
   ApprovalAuditEntry,
   CommunityPoll,
   SocietyProfileDetails,
+  EmergencyContact,
+  SocietyGalleryItem,
 } from '../types';
+import heroImg from '../assets/images/hero_solitaire_society_1790929946633.jpg';
+import poolImg from '../assets/images/amenity_swimming_pool_1790929965312.jpg';
+import gymImg from '../assets/images/amenity_modern_gym_1790929982674.jpg';
+import stpImg from '../assets/images/utility_water_stp_1790929998273.jpg';
+import clubhouseImg from '../assets/images/solitaire_clubhouse_1791127802446.jpg';
+import amenitiesImg from '../assets/images/solitaire_amenities_1791127816486.jpg';
+import layoutImg from '../assets/images/solitaire_layout_1791127831982.jpg';
 
 export const MASTER_STAFF_DIRECTORY: StaffMember[] = [
   { srNo: 1, name: 'Parvez', team: 'Supervisor', role: 'Facility Supervisor', shift: 'General Shift (08:00 - 17:00)', status: 'Active' },
@@ -1755,6 +1764,170 @@ export const INITIAL_POLLS: CommunityPoll[] = [
       'A-402': 'opt-sol-1',
     },
     resolutionSummary: 'Resolution Passed unanimously with 79.6% majority (78 votes in favor). Work Order WO-2026-003 released to SunWatts Solar Engineering LLP.',
+  },
+];
+
+export const INITIAL_EMERGENCY_CONTACTS: EmergencyContact[] = [
+  {
+    id: 'emg-001',
+    category: 'Priority Protocol',
+    title: 'Lift Entrapment & Pipe Rupture Protocol',
+    subtitle: 'Alert Gate A immediately. All elevators feature Automatic Rescue Device (ARD) and direct intercom.',
+    phone: '+91 20 2748 1101',
+    displayOrder: 1,
+  },
+  {
+    id: 'emg-002',
+    category: 'Society Gate & Security',
+    title: 'Security Main Gate A (Vehicular)',
+    subtitle: '24/7 Guard Station',
+    phone: '+91 20 2748 1101',
+    displayOrder: 2,
+  },
+  {
+    id: 'emg-003',
+    category: 'Society Gate & Security',
+    title: 'Security Gate B (Pedestrian / Delivery)',
+    subtitle: '24/7 Guard Station',
+    phone: '+91 20 2748 1102',
+    displayOrder: 3,
+  },
+  {
+    id: 'emg-004',
+    category: 'Society Gate & Security',
+    title: 'Prem Singh (Security Supervisor)',
+    subtitle: 'On-Duty Security Head',
+    phone: '+91 98220 54101',
+    displayOrder: 4,
+  },
+  {
+    id: 'emg-005',
+    category: 'Critical Utilities & Technical Breakdown',
+    title: 'Otis 24/7 Elevator Emergency Helpline',
+    subtitle: 'Passenger Trap Rescue',
+    phone: '1800 233 6847',
+    displayOrder: 5,
+  },
+  {
+    id: 'emg-006',
+    category: 'Critical Utilities & Technical Breakdown',
+    title: 'Estate Electrician (Sunil)',
+    subtitle: 'Phase & DG Changeover',
+    phone: '+91 97663 55219',
+    displayOrder: 6,
+  },
+  {
+    id: 'emg-007',
+    category: 'Critical Utilities & Technical Breakdown',
+    title: 'Estate Plumber (Ramesh)',
+    subtitle: 'Main Valve / Burst Leak',
+    phone: '+91 98201 44521',
+    displayOrder: 7,
+  },
+  {
+    id: 'emg-008',
+    category: 'Critical Utilities & Technical Breakdown',
+    title: 'Estate Manager (Mr. K. Verma)',
+    subtitle: 'Admin & Escalations',
+    phone: '+91 98900 12890',
+    displayOrder: 8,
+  },
+  {
+    id: 'emg-009',
+    category: 'Civic & Emergency Services',
+    title: 'Local Fire Brigade Station',
+    subtitle: 'Disaster Response',
+    phone: '+91 20 2550 6300',
+    displayOrder: 9,
+  },
+  {
+    id: 'emg-010',
+    category: 'Civic & Emergency Services',
+    title: 'Nearest Hospital & Trauma Care (LifeLine)',
+    subtitle: 'Ambulance & Emergency',
+    phone: '+91 20 6620 9000',
+    displayOrder: 10,
+  },
+  {
+    id: 'emg-011',
+    category: 'Civic & Emergency Services',
+    title: 'Chaturshringi Police Station',
+    subtitle: 'Jurisdiction Law Enforcement',
+    phone: '+91 20 2565 2400',
+    displayOrder: 11,
+  },
+];
+
+export const INITIAL_GALLERY_ITEMS: SocietyGalleryItem[] = [
+  {
+    id: 'gal-001',
+    title: 'Solitaire Towers Front Elevation & Landscaping',
+    description: 'Panoramic view of Solitaire CHS towers, grand reception lobby access, and paved vehicular driveway.',
+    imageUrl: heroImg,
+    category: 'Architecture',
+    visibility: 'Public',
+    uploadedBy: 'Estate Admin',
+    createdAt: '2026-09-15',
+  },
+  {
+    id: 'gal-002',
+    title: 'Grand Solitaire Clubhouse & Event Lawn',
+    description: 'Multi-purpose air-conditioned community hall and banquet lawn with landscaped outdoor seating.',
+    imageUrl: clubhouseImg,
+    category: 'Amenities',
+    visibility: 'Public',
+    uploadedBy: 'Estate Admin',
+    createdAt: '2026-09-18',
+  },
+  {
+    id: 'gal-003',
+    title: 'Semi-Olympic Chlorinated Swimming Pool',
+    description: 'Pristine swimming pool with dedicated kids splash pool, deck loungers, and safety filtration system.',
+    imageUrl: poolImg,
+    category: 'Amenities',
+    visibility: 'Public',
+    uploadedBy: 'Facility Supervisor',
+    createdAt: '2026-09-20',
+  },
+  {
+    id: 'gal-004',
+    title: 'High-Tech Fitness Centre & Gymnasium',
+    description: 'Full cardio section, multi-gym equipment, indoor rubberized turf, and climate-controlled conditioning.',
+    imageUrl: gymImg,
+    category: 'Fitness',
+    visibility: 'Public',
+    uploadedBy: 'Facility Supervisor',
+    createdAt: '2026-09-22',
+  },
+  {
+    id: 'gal-005',
+    title: 'STP Plant & Tertiary Recycled Water Unit',
+    description: 'Internal Moving Bed Biofilm Reactor (MBBR) plant recycling 48,000 L/day for flushing and landscaping.',
+    imageUrl: stpImg,
+    category: 'Utilities',
+    visibility: 'Private',
+    uploadedBy: 'Facility Supervisor',
+    createdAt: '2026-09-25',
+  },
+  {
+    id: 'gal-006',
+    title: 'Central Podium Landscape & Kids Play Park',
+    description: 'Dedicated vehicle-free green courtyard with rubber flooring, swings, and amphitheatre steps.',
+    imageUrl: amenitiesImg,
+    category: 'Grounds',
+    visibility: 'Public',
+    uploadedBy: 'Estate Admin',
+    createdAt: '2026-09-28',
+  },
+  {
+    id: 'gal-007',
+    title: 'Master Campus Site Layout & Wing Orientation',
+    description: 'Society layout schematic indicating Tower A, Tower B, Tower C, emergency assembly points, and DG room.',
+    imageUrl: layoutImg,
+    category: 'Campus Layout',
+    visibility: 'Private',
+    uploadedBy: 'MC Secretary',
+    createdAt: '2026-10-01',
   },
 ];
 

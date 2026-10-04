@@ -26,6 +26,130 @@ export const ALL_SOCIETY_FLATS: string[] = [
   ...Array.from({ length: 15 }, (_, f) => [1, 2, 3, 4].map((u) => `B-${(f + 1) * 100 + u}`)).flat(),
 ];
 
+// Supabase Units / Flats Schema Representation
+export interface SocietyUnit {
+  id: string;
+  flatNo: string;
+  flat_no?: string;
+  tower: TowerId;
+  floor: number;
+  unitNumber: number;
+  unit_number?: number;
+  status: 'Occupied' | 'Vacant' | 'Owner' | 'Tenant';
+  ownerName?: string;
+  owner_name?: string;
+  tenantName?: string;
+  tenant_name?: string;
+  contactPhone?: string;
+  contact_phone?: string;
+  createdAt?: string;
+  created_at?: string;
+}
+
+// Supabase Database Row Types (exact table definitions for Supabase PostgreSQL)
+export interface SupabaseMemberRow {
+  id: string;
+  member_id?: string;
+  email: string;
+  name: string;
+  tower: TowerId | string;
+  flat_no: string;
+  role: UserRole | string;
+  ownership_type: 'Owner' | 'Tenant' | string;
+  phone: string;
+  is_approved: boolean;
+  status: 'Pending Approval' | 'Approved' | 'Rejected' | string;
+  registered_date: string;
+  approved_or_rejected_by?: string;
+  reviewed_at?: string;
+  review_remarks?: string;
+  created_at?: string;
+}
+
+export interface SupabaseUnitRow {
+  id: string;
+  flat_no: string;
+  tower: string;
+  floor: number;
+  unit_number: number;
+  status: string;
+  owner_name?: string;
+  tenant_name?: string;
+  contact_phone?: string;
+  created_at?: string;
+}
+
+export interface SupabaseProcurementOrderRow {
+  id: string;
+  quote_number?: string;
+  procurement_project_id: string;
+  project_title: string;
+  vendor_id: string;
+  vendor_name: string;
+  items?: QuoteLineItem[] | any;
+  subtotal?: number;
+  gst_percent?: number;
+  tax_amount?: number;
+  grand_total?: number;
+  quoted_amount?: number;
+  validity_date?: string;
+  estimated_days?: number;
+  warranty_months?: number;
+  submitted_date?: string;
+  scope_of_work?: string;
+  pdf_proposal_url?: string;
+  pdf_file_name?: string;
+  status?: string;
+  committee_notes?: string;
+  created_at?: string;
+}
+
+export interface SupabaseWorkOrderRow {
+  id: string;
+  procurement_title: string;
+  category: string;
+  quote_id?: string;
+  quote_number?: string;
+  vendor_id: string;
+  vendor_name: string;
+  vendor_contact?: string;
+  vendor_gst?: string;
+  vendor_pan?: string;
+  total_approved_amount: number;
+  start_date: string;
+  target_completion_date: string;
+  progress_percent: number;
+  scope_summary: string;
+  payment_terms: string;
+  approval_status: WorkOrderApprovalStatus | string;
+  approving_user_id?: string;
+  approved_at?: string;
+  secretary_comments?: string;
+  work_status: string;
+  released_by: string;
+  released_at: string;
+  payments?: WorkOrderPayment[] | any;
+  items?: QuoteLineItem[] | any;
+  subtotal?: number;
+  tax_amount?: number;
+  created_at?: string;
+}
+
+export interface SupabaseVehicleRow {
+  id: string;
+  flat_no: string;
+  owner_name: string;
+  vehicle_type: string;
+  make_model: string;
+  license_plate: string;
+  rfid_tag_id: string;
+  parking_sticker_no: string;
+  parking_slot_no: string;
+  is_ev: boolean;
+  registered_date: string;
+  created_at?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
@@ -195,15 +319,25 @@ export interface ParkingSlot {
 export interface VehicleRecord {
   id: string;
   flatNo: string; // Dropdown selector from predefined list (A-101 to B-1504)
+  flat_no?: string;
   ownerName: string;
+  owner_name?: string;
   vehicleType: '4-Wheeler' | '2-Wheeler' | 'EV (4-Wheeler)' | 'EV (2-Wheeler)';
+  vehicle_type?: string;
   makeModel: string;
+  make_model?: string;
   licensePlate: string;
+  license_plate?: string;
   rfidTagId: string;
+  rfid_tag_id?: string;
   parkingStickerNo: string;
+  parking_sticker_no?: string;
   parkingSlotNo: string;
+  parking_slot_no?: string;
   isEv: boolean;
+  is_ev?: boolean;
   registeredDate: string;
+  registered_date?: string;
 }
 
 export interface VisitorParkingPass {
@@ -224,19 +358,27 @@ export interface VisitorParkingPass {
 export interface MemberProfile {
   id: string;
   memberId: string; // e.g. SOL-A-402
+  member_id?: string;
   email: string;
   name: string;
   tower: TowerId;
   flatNo: string; // Strictly unique per flat constraint!
+  flat_no?: string;
   role: UserRole;
   ownershipType: 'Owner' | 'Tenant';
+  ownership_type?: 'Owner' | 'Tenant' | string;
   phone: string;
   isApproved: boolean; // default false
+  is_approved?: boolean;
   status: 'Pending Approval' | 'Approved' | 'Rejected';
   registeredDate: string;
+  registered_date?: string;
   approvedOrRejectedBy?: string;
+  approved_or_rejected_by?: string;
   reviewedAt?: string;
+  reviewed_at?: string;
   reviewRemarks?: string;
+  review_remarks?: string;
 }
 
 export interface ApprovalAuditEntry {

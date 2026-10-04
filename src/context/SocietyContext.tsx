@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   UserRole,
   AmenityBooking,
@@ -49,6 +50,16 @@ import {
   INITIAL_VISITOR_PASSES,
   INITIAL_POLLS,
 } from '../data/initialData';
+import {
+  supabase,
+  isSupabaseConfigured,
+  mapMemberRowToProfile,
+  mapProfileToMemberRow,
+  mapVehicleRowToRecord,
+  mapRecordToVehicleRow,
+  mapWorkOrderRowToModel,
+  mapQuoteRowToModel,
+} from '../lib/supabase';
 
 interface SocietyContextType {
   role: UserRole;
@@ -112,7 +123,7 @@ interface SocietyContextType {
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
-  }) => { success: boolean; error?: string; memberId?: string };
+  }) => Promise<{ success: boolean; error?: string; memberId?: string }> | { success: boolean; error?: string; memberId?: string };
   addMemberProfile: (profile: Omit<MemberProfile, 'id' | 'memberId' | 'isApproved' | 'status' | 'registeredDate'>) => string;
   approveMemberProfile: (id: string, isApproved: boolean, remarks?: string) => void;
   updateUserRole: (id: string, newRole: UserRole) => void;
@@ -153,12 +164,32 @@ interface SocietyContextType {
   castVote: (pollId: string, optionId: string) => { success: boolean; message: string };
   createPoll: (poll: Omit<CommunityPoll, 'id' | 'totalVotes' | 'votedFlats' | 'userVotes'>) => string;
   closePoll: (pollId: string, resolutionSummary: string) => void;
+  // Supabase Auth and Persistence additions
+  supabaseUser: SupabaseUser | null;
+  isSupabaseOnline: boolean;
+  authLoading: boolean;
+  signInWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole; isPending?: boolean }>;
+  signUpWithSupabase: (params: {
+    email: string;
+    password: string;
+    name: string;
+    phone: string;
+    tower: 'Tower A' | 'Tower B' | 'Tower C';
+    flatNo: string;
+    ownershipType: 'Owner' | 'Tenant';
+  }) => Promise<{ success: boolean; error?: string; memberId?: string }>;
+  signOutWithSupabase: () => Promise<void>;
 }
 
 const SocietyContext = createContext<SocietyContextType | undefined>(undefined);
 
 export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Profiles state with localStorage
+  // Supabase Auth and Network Status state
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [isSupabaseOnline, setIsSupabaseOnline] = useState<boolean>(isSupabaseConfigured);
+
+  // Profiles state with localStorage cache fallback
   const [profiles, setProfiles] = useState<MemberProfile[]>(() => {
     const saved = localStorage.getItem('solitaire_profiles_v2');
     return saved ? JSON.parse(saved) : INITIAL_PROFILES;
@@ -189,8 +220,8 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const isRejected = Boolean(currentProfile && currentProfile.status === 'Rejected' && role === 'resident');
   const isPendingApproval = Boolean(
     currentProfile &&
-    (currentProfile.status === 'Pending Approval' || (!currentProfile.isApproved && currentProfile.status !== 'Rejected')) &&
-    role === 'resident'
+      (currentProfile.status === 'Pending Approval' || (!currentProfile.isApproved && currentProfile.status !== 'Rejected')) &&
+      role === 'resident'
   );
 
   const [activeTab, setActiveTabState] = useState<string>('home');
@@ -207,7 +238,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [filterOnlyMyFilings, setFilterOnlyMyFilings] = useState<boolean>(true);
 
   // Sync user info when profile or role changes
-  const loginAsRole = (newRole: UserRole, profileId?: string) => {
+  const loginAsRole = useCallback((newRole: UserRole, profileId?: string) => {
     const normalizedRole: UserRole =
       newRole === 'member' ? 'resident' : newRole === 'secretary' ? 'mc_member' : newRole;
 
@@ -255,22 +286,26 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCurrentMemberId('SOL-ADM-01');
       }
     }
-  };
+  }, [profiles]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
+    if (isSupabaseConfigured) {
+      supabase.auth.signOut().catch((err) => console.warn('Supabase signOut error:', err));
+    }
+    setSupabaseUser(null);
     setRoleState('public');
     localStorage.setItem('solitaire_role', 'public');
     setUserFlat('Public Visitor');
     setUserName('Visitor / Guest');
     setCurrentMemberId('SOL-PUBLIC');
     setActiveTabState('home');
-  };
+  }, []);
 
   const setRole = (newRole: UserRole) => {
     loginAsRole(newRole);
   };
 
-  // Vehicles state with localStorage
+  // Vehicles state with localStorage fallback
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => {
     const saved = localStorage.getItem('solitaire_vehicles');
     return saved ? JSON.parse(saved) : INITIAL_VEHICLES;
@@ -444,25 +479,268 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem('solitaire_tankers', JSON.stringify(tankers));
   }, [tankers]);
 
+  // =========================================================================
+  // SUPABASE DATA FETCHING & REAL-TIME REPLICATION
+  // =========================================================================
+
+  const fetchMembersFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase.from('members').select('*');
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapMemberRowToProfile);
+        setProfiles(mapped);
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch members table:', err);
+    }
+  }, []);
+
+  const fetchVehiclesFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase.from('vehicles').select('*');
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapVehicleRowToRecord);
+        setVehicles(mapped);
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch vehicles table:', err);
+    }
+  }, []);
+
+  const fetchWorkOrdersFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase.from('work_orders').select('*');
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapWorkOrderRowToModel);
+        setWorkOrders(mapped);
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch work_orders table:', err);
+    }
+  }, []);
+
+  const fetchProcurementFromSupabase = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase.from('procurement_orders').select('*');
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(mapQuoteRowToModel);
+        setQuotes(mapped);
+      }
+    } catch (err) {
+      console.warn('[Supabase] Failed to fetch procurement_orders table:', err);
+    }
+  }, []);
+
+  // Initial load from Supabase tables
+  useEffect(() => {
+    if (isSupabaseConfigured) {
+      fetchMembersFromSupabase();
+      fetchVehiclesFromSupabase();
+      fetchWorkOrdersFromSupabase();
+      fetchProcurementFromSupabase();
+    }
+  }, [
+    fetchMembersFromSupabase,
+    fetchVehiclesFromSupabase,
+    fetchWorkOrdersFromSupabase,
+    fetchProcurementFromSupabase,
+  ]);
+
+  // Real-time table listeners
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    try {
+      const channel = supabase
+        .channel('solitaire-portal-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => {
+          fetchMembersFromSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, () => {
+          fetchVehiclesFromSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'work_orders' }, () => {
+          fetchWorkOrdersFromSupabase();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'procurement_orders' }, () => {
+          fetchProcurementFromSupabase();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (err) {
+      console.warn('[Supabase] Realtime subscription error:', err);
+    }
+  }, [
+    fetchMembersFromSupabase,
+    fetchVehiclesFromSupabase,
+    fetchWorkOrdersFromSupabase,
+    fetchProcurementFromSupabase,
+  ]);
+
+  // =========================================================================
+  // SUPABASE AUTH STATE LISTENERS (onAuthStateChange & getUser)
+  // =========================================================================
+
+  const syncProfileForAuthUser = useCallback(
+    (authUser: SupabaseUser | null, allProfiles: MemberProfile[]) => {
+      if (!authUser) {
+        // If not logged in via Supabase and no active role in localStorage, remain public
+        const currentSavedRole = localStorage.getItem('solitaire_role');
+        if (!currentSavedRole || currentSavedRole === 'public') {
+          setRoleState('public');
+          setUserFlat('Public Visitor');
+          setUserName('Visitor / Guest');
+          setCurrentMemberId('SOL-PUBLIC');
+        }
+        return;
+      }
+
+      setSupabaseUser(authUser);
+      const userEmail = (authUser.email || '').toLowerCase().trim();
+      const userMeta = authUser.user_metadata || {};
+
+      // Match profile by email or user ID or metadata flat
+      let matchedProfile = allProfiles.find(
+        (p) => p.email.toLowerCase().trim() === userEmail || p.id === authUser.id
+      );
+
+      if (!matchedProfile && userMeta.flat_no) {
+        matchedProfile = allProfiles.find(
+          (p) => p.flatNo.toUpperCase().trim() === String(userMeta.flat_no).toUpperCase().trim()
+        );
+      }
+
+      if (matchedProfile) {
+        setActiveProfileId(matchedProfile.id);
+        localStorage.setItem('solitaire_active_profile_id', matchedProfile.id);
+        setUserFlat(matchedProfile.flatNo);
+        setUserName(matchedProfile.name);
+        setCurrentMemberId(matchedProfile.memberId);
+
+        // LOCK UNAPPROVED USERS IN PENDING STATE
+        if (!matchedProfile.isApproved || matchedProfile.status === 'Pending Approval') {
+          setRoleState('resident');
+          localStorage.setItem('solitaire_role', 'resident');
+        } else if (matchedProfile.status === 'Rejected') {
+          setRoleState('resident');
+          localStorage.setItem('solitaire_role', 'resident');
+        } else {
+          // Approved user gets their full society role (resident, supervisor, mc_member, admin)
+          setRoleState(matchedProfile.role);
+          localStorage.setItem('solitaire_role', matchedProfile.role);
+        }
+      } else {
+        // User authenticated with Supabase but has not registered a flat profile yet
+        // Lock them in pending registration/verification
+        setRoleState('resident');
+        localStorage.setItem('solitaire_role', 'resident');
+        setUserFlat(userMeta.flat_no || 'Unassigned Flat');
+        setUserName(userMeta.name || authUser.email?.split('@')[0] || 'New Resident');
+        setCurrentMemberId(`SOL-NEW-${authUser.id.slice(0, 6)}`);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkInitialSession() {
+      setAuthLoading(true);
+      if (isSupabaseConfigured) {
+        try {
+          const { data, error } = await supabase.auth.getUser();
+          if (!error && data?.user && isMounted) {
+            syncProfileForAuthUser(data.user, profiles);
+          }
+        } catch (err) {
+          console.warn('[Supabase] Initial auth session check error:', err);
+        }
+      }
+      if (isMounted) setAuthLoading(false);
+    }
+
+    checkInitialSession();
+
+    // Supabase onAuthStateChange listener
+    let subscription: { unsubscribe: () => void } | null = null;
+    if (isSupabaseConfigured) {
+      try {
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+          if (!isMounted) return;
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+            syncProfileForAuthUser(session?.user || null, profiles);
+          } else if (event === 'SIGNED_OUT') {
+            setSupabaseUser(null);
+            setRoleState('public');
+            localStorage.setItem('solitaire_role', 'public');
+            setUserFlat('Public Visitor');
+            setUserName('Visitor / Guest');
+            setCurrentMemberId('SOL-PUBLIC');
+            setActiveTabState('home');
+          }
+        });
+        subscription = data.subscription;
+      } catch (err) {
+        console.warn('[Supabase] onAuthStateChange setup error:', err);
+      }
+    }
+
+    return () => {
+      isMounted = false;
+      if (subscription) subscription.unsubscribe();
+    };
+  }, [profiles, syncProfileForAuthUser]);
+
+  // =========================================================================
   // SINGLE MEMBER PER FLAT CONSTRAINT & REGISTRATION ENGINE
-  const registerMember = (data: {
+  // =========================================================================
+
+  const registerMember = async (data: {
     name: string;
     email: string;
     phone: string;
     tower: 'Tower A' | 'Tower B' | 'Tower C';
     flatNo: string;
     ownershipType: 'Owner' | 'Tenant';
-  }): { success: boolean; error?: string; memberId?: string } => {
+  }): Promise<{ success: boolean; error?: string; memberId?: string }> => {
     const cleanFlat = data.flatNo.trim().toUpperCase();
 
-    // Enforce 1 registered user account per flat (excluding previously rejected registrations)
+    // 1. Check Supabase 'members' and 'flats' table for one-member-per-flat constraint
+    if (isSupabaseConfigured) {
+      try {
+        const { data: dbMembers, error: dbError } = await supabase
+          .from('members')
+          .select('id, name, flat_no, status')
+          .ilike('flat_no', cleanFlat)
+          .neq('status', 'Rejected');
+
+        if (!dbError && dbMembers && dbMembers.length > 0) {
+          return {
+            success: false,
+            error: `Flat [${cleanFlat}] is already registered in Solitaire CHS under (${dbMembers[0].name}). Single member per flat policy is active.`,
+          };
+        }
+      } catch (err) {
+        console.warn('[Supabase] Failed checking member constraint in DB, checking local state:', err);
+      }
+    }
+
+    // 2. Fallback / Synchronous check against local memory/storage profiles
     const alreadyRegistered = profiles.find(
       (p) => p.flatNo.trim().toUpperCase() === cleanFlat && p.status !== 'Rejected'
     );
     if (alreadyRegistered) {
       return {
         success: false,
-        error: `Flat [${cleanFlat}] is already registered under another account (${alreadyRegistered.name}). Please contact the society administrator if this is an error.`,
+        error: `Flat [${cleanFlat}] is already registered in Solitaire CHS under (${alreadyRegistered.name}). One-member-per-flat rule prevents multiple registrations.`,
       };
     }
 
@@ -489,6 +767,15 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setProfiles((prev) => [newProfile, ...prev]);
 
+    // Insert into Supabase if configured
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('members').insert([mapProfileToMemberRow(newProfile)]);
+      } catch (err) {
+        console.warn('[Supabase] Error inserting new member:', err);
+      }
+    }
+
     // Record in Audit Trail
     const auditEntry: ApprovalAuditEntry = {
       id: `AUD-${Date.now()}`,
@@ -507,7 +794,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addMemberProfile = (data: Omit<MemberProfile, 'id' | 'memberId' | 'isApproved' | 'status' | 'registeredDate'>): string => {
-    const res = registerMember({
+    registerMember({
       name: data.name,
       email: data.email,
       phone: data.phone,
@@ -515,7 +802,146 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       flatNo: data.flatNo,
       ownershipType: data.ownershipType,
     });
-    return res.memberId || `SOL-${data.tower.replace('Tower ', '')}-${data.flatNo.replace(/[^a-zA-Z0-9]/g, '')}`;
+    return `SOL-${data.tower.replace('Tower ', '')}-${data.flatNo.replace(/[^a-zA-Z0-9]/g, '')}`;
+  };
+
+  // =========================================================================
+  // SUPABASE AUTH ACTIONS (signInWithSupabase, signUpWithSupabase, signOutWithSupabase)
+  // =========================================================================
+
+  const signInWithSupabase = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string; role?: UserRole; isPending?: boolean }> => {
+    setAuthLoading(true);
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (error) {
+          setAuthLoading(false);
+          return { success: false, error: error.message };
+        }
+
+        if (data?.user) {
+          syncProfileForAuthUser(data.user, profiles);
+          const userEmail = data.user.email?.toLowerCase().trim();
+          const matched = profiles.find((p) => p.email.toLowerCase().trim() === userEmail);
+          const pending = !matched || !matched.isApproved || matched.status === 'Pending Approval';
+          setAuthLoading(false);
+          return {
+            success: true,
+            role: matched ? matched.role : 'resident',
+            isPending: pending,
+          };
+        }
+      } catch (err: any) {
+        setAuthLoading(false);
+        return { success: false, error: err.message || 'Supabase authentication failed.' };
+      }
+    }
+
+    // Fallback authentication for offline or demo environments
+    const matchedProfile = profiles.find(
+      (p) => p.email.toLowerCase().trim() === email.toLowerCase().trim()
+    );
+
+    if (!matchedProfile) {
+      setAuthLoading(false);
+      return {
+        success: false,
+        error: `No registered account found for ${email}. Please register your flat first.`,
+      };
+    }
+
+    loginAsRole(matchedProfile.role, matchedProfile.id);
+    setAuthLoading(false);
+    return {
+      success: true,
+      role: matchedProfile.role,
+      isPending: !matchedProfile.isApproved || matchedProfile.status === 'Pending Approval',
+    };
+  };
+
+  const signUpWithSupabase = async (params: {
+    email: string;
+    password: string;
+    name: string;
+    phone: string;
+    tower: 'Tower A' | 'Tower B' | 'Tower C';
+    flatNo: string;
+    ownershipType: 'Owner' | 'Tenant';
+  }): Promise<{ success: boolean; error?: string; memberId?: string }> => {
+    setAuthLoading(true);
+
+    // 1. One-member-per-flat validation check
+    const regCheck = await registerMember({
+      name: params.name,
+      email: params.email,
+      phone: params.phone,
+      tower: params.tower,
+      flatNo: params.flatNo,
+      ownershipType: params.ownershipType,
+    });
+
+    if (!regCheck.success) {
+      setAuthLoading(false);
+      return regCheck;
+    }
+
+    // 2. Create user in Supabase Auth if configured
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: params.email.trim(),
+          password: params.password,
+          options: {
+            data: {
+              name: params.name,
+              phone: params.phone,
+              tower: params.tower,
+              flat_no: params.flatNo.trim().toUpperCase(),
+              ownership_type: params.ownershipType,
+            },
+          },
+        });
+
+        if (error) {
+          setAuthLoading(false);
+          return { success: false, error: error.message };
+        }
+
+        if (data.user) {
+          setSupabaseUser(data.user);
+        }
+      } catch (err: any) {
+        console.warn('[Supabase] Auth signUp warning:', err);
+      }
+    }
+
+    // Set active session in pending verification state
+    const cleanFlat = params.flatNo.trim().toUpperCase();
+    const createdProfile = profiles.find((p) => p.flatNo.toUpperCase() === cleanFlat);
+    if (createdProfile) {
+      setActiveProfileId(createdProfile.id);
+      localStorage.setItem('solitaire_active_profile_id', createdProfile.id);
+    }
+    setRoleState('resident');
+    localStorage.setItem('solitaire_role', 'resident');
+    setUserFlat(cleanFlat);
+    setUserName(params.name);
+    setCurrentMemberId(regCheck.memberId || 'SOL-PENDING');
+
+    setAuthLoading(false);
+    return regCheck;
+  };
+
+  const signOutWithSupabase = async () => {
+    logout();
   };
 
   // MC/ADMIN APPROVAL & REJECTION ENGINE
@@ -525,6 +951,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const today = new Date().toISOString().split('T')[0];
     const timeStr = `${today} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const newStatus = isApproved ? 'Approved' : 'Rejected';
 
     setProfiles((prev) =>
       prev.map((p) =>
@@ -532,7 +959,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ? {
               ...p,
               isApproved,
-              status: isApproved ? 'Approved' : 'Rejected',
+              status: newStatus,
               approvedOrRejectedBy: userName,
               reviewedAt: timeStr,
               reviewRemarks: remarks || (isApproved ? 'Approved by Committee' : 'Application rejected'),
@@ -540,6 +967,23 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : p
       )
     );
+
+    // Sync to Supabase if configured
+    if (isSupabaseConfigured) {
+      supabase
+        .from('members')
+        .update({
+          is_approved: isApproved,
+          status: newStatus,
+          approved_or_rejected_by: userName,
+          reviewed_at: timeStr,
+          review_remarks: remarks || (isApproved ? 'Approved by Committee' : 'Application rejected'),
+        })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update member status error:', error);
+        });
+    }
 
     // Append to searchable audit log
     const auditEntry: ApprovalAuditEntry = {
@@ -567,6 +1011,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       prev.map((p) => (p.id === id ? { ...p, role: newRole } : p))
     );
 
+    if (isSupabaseConfigured) {
+      supabase
+        .from('members')
+        .update({ role: newRole })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update role error:', error);
+        });
+    }
+
     const auditEntry: ApprovalAuditEntry = {
       id: `AUD-${Date.now()}`,
       userId: id,
@@ -586,6 +1040,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!target) return;
 
     setProfiles((prev) => prev.filter((p) => p.id !== id));
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('members')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Delete member error:', error);
+        });
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const timeStr = `${today} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -613,6 +1077,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       registeredDate: today,
     };
     setVehicles((prev) => [newRecord, ...prev]);
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vehicles')
+        .insert([mapRecordToVehicleRow(newRecord)])
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Insert vehicle error:', error);
+        });
+    }
+
     return newId;
   };
 
@@ -620,10 +1094,30 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setVehicles((prev) =>
       prev.map((v) => (v.id === id ? { ...v, ...updatedFields } : v))
     );
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vehicles')
+        .update(updatedFields)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update vehicle error:', error);
+        });
+    }
   };
 
   const deleteVehicle = (id: string) => {
     setVehicles((prev) => prev.filter((v) => v.id !== id));
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vehicles')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Delete vehicle error:', error);
+        });
+    }
   };
 
   const bulkImportVehicles = (records: Omit<VehicleRecord, 'id' | 'registeredDate'>[]): number => {
@@ -634,6 +1128,16 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       registeredDate: today,
     }));
     setVehicles((prev) => [...newRecords, ...prev]);
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vehicles')
+        .insert(newRecords.map(mapRecordToVehicleRow))
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Bulk import vehicles error:', error);
+        });
+    }
+
     return newRecords.length;
   };
 
@@ -709,6 +1213,36 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       status: 'Pending Review',
     };
     setQuotes((prev) => [newQuote, ...prev]);
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('procurement_orders')
+        .insert([
+          {
+            id: newQuoteId,
+            quote_number: quoteNum,
+            procurement_project_id: quote.procurementProjectId,
+            project_title: quote.projectTitle,
+            vendor_id: quote.vendorId,
+            vendor_name: quote.vendorName,
+            items: quote.items || [],
+            subtotal,
+            gst_percent: gstPercent,
+            tax_amount: taxAmount,
+            grand_total: grandTotal,
+            quoted_amount: grandTotal,
+            estimated_days: quote.estimatedDays,
+            warranty_months: quote.warrantyMonths,
+            submitted_date: today,
+            scope_of_work: quote.scopeOfWork,
+            status: 'Pending Review',
+          },
+        ])
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Insert quote error:', error);
+        });
+    }
+
     return newQuoteId;
   };
 
@@ -742,8 +1276,8 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     else if (lower.includes('security') || lower.includes('cctv')) cat = 'Security & CCTV';
 
     const grandTotal = selectedQuote.grandTotal || selectedQuote.quotedAmount;
-    const subtotal = selectedQuote.subtotal || Math.round((grandTotal / 1.18));
-    const tax = selectedQuote.taxAmount || (grandTotal - subtotal);
+    const subtotal = selectedQuote.subtotal || Math.round(grandTotal / 1.18);
+    const tax = selectedQuote.taxAmount || grandTotal - subtotal;
 
     const newWO: WorkOrder = {
       id: newWoId,
@@ -781,6 +1315,39 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     setWorkOrders((prev) => [newWO, ...prev]);
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('work_orders')
+        .insert([
+          {
+            id: newWoId,
+            procurement_title: newWO.procurementTitle,
+            category: newWO.category,
+            quote_id: newWO.quoteId,
+            quote_number: newWO.quoteNumber,
+            vendor_id: newWO.vendorId,
+            vendor_name: newWO.vendorName,
+            vendor_contact: newWO.vendorContact,
+            vendor_gst: newWO.vendorGst,
+            total_approved_amount: newWO.totalApprovedAmount,
+            start_date: newWO.startDate,
+            target_completion_date: newWO.targetCompletionDate,
+            progress_percent: 0,
+            scope_summary: newWO.scopeSummary,
+            payment_terms: newWO.paymentTerms,
+            approval_status: 'Pending_Secretary_Approval',
+            work_status: 'Scheduled',
+            released_by: newWO.releasedBy,
+            released_at: newWO.releasedAt,
+            payments: [],
+          },
+        ])
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Insert work order error:', error);
+        });
+    }
+
     return newWoId;
   };
 
@@ -802,6 +1369,22 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : wo
       )
     );
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('work_orders')
+        .update({
+          approval_status: 'Approved',
+          work_status: 'In Progress',
+          approving_user_id: `${currentMemberId} (${userName})`,
+          approved_at: timeStr,
+          secretary_comments: secretaryComments,
+        })
+        .eq('id', workOrderId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Approve work order error:', error);
+        });
+    }
   };
 
   const requestWorkOrderChanges = (workOrderId: string, secretaryComments: string) => {
@@ -821,6 +1404,21 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : wo
       )
     );
+
+    if (isSupabaseConfigured) {
+      supabase
+        .from('work_orders')
+        .update({
+          approval_status: 'Changes_Requested',
+          approving_user_id: `${currentMemberId} (${userName})`,
+          approved_at: timeStr,
+          secretary_comments: secretaryComments,
+        })
+        .eq('id', workOrderId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Request WO changes error:', error);
+        });
+    }
   };
 
   const updateWorkOrderProgress = (workOrderId: string, progress: number, workStatus?: WorkOrder['workStatus']) => {
@@ -838,6 +1436,20 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return wo;
       })
     );
+
+    if (isSupabaseConfigured) {
+      const clamped = Math.min(100, Math.max(0, progress));
+      supabase
+        .from('work_orders')
+        .update({
+          progress_percent: clamped,
+          work_status: workStatus || (clamped >= 100 ? 'Completed' : 'In Progress'),
+        })
+        .eq('id', workOrderId)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update progress error:', error);
+        });
+    }
   };
 
   const addWorkOrderPayment = (
@@ -1293,6 +1905,12 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         castVote,
         createPoll,
         closePoll,
+        supabaseUser,
+        isSupabaseOnline,
+        authLoading,
+        signInWithSupabase,
+        signUpWithSupabase,
+        signOutWithSupabase,
       }}
     >
       {children}

@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -120,6 +121,8 @@ app.post('/api/chat', async (req, res) => {
 });
 
 async function startServer() {
+  const httpServer = http.createServer(app);
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(process.cwd(), 'dist')));
     app.get('*', (req, res) => {
@@ -128,13 +131,25 @@ async function startServer() {
   } else {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { server: httpServer },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[Server] Port ${PORT} is already in use.`);
+      process.exit(1);
+    } else {
+      console.error('[Server] Unhandled server error:', err);
+    }
+  });
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Solitaire CHS Portal server running at http://localhost:${PORT}`);
   });
 }

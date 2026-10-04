@@ -42,7 +42,7 @@ export const CommunityPollsSection: React.FC = () => {
   // Create Poll Form State
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newCategory, setNewCategory] = useState<CommunityPoll['category']>('Infrastructure & EV');
+  const [newCategory, setNewCategory] = useState<CommunityPoll['category']>('Infrastructure & Utilities');
   const [newQuorum, setNewQuorum] = useState<number>(60);
   const [newDays, setNewDays] = useState<number>(14);
   const [newOption1, setNewOption1] = useState('Option A (Full Society Implementation)');
@@ -264,7 +264,7 @@ export const CommunityPollsSection: React.FC = () => {
             className="px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800"
           >
             <option value="All">All Categories</option>
-            <option value="Infrastructure & EV">Infrastructure & EV</option>
+            <option value="Infrastructure & Utilities">Infrastructure & Utilities</option>
             <option value="Amenities & Energy">Amenities & Energy</option>
             <option value="Society Rules & Security">Society Rules & Security</option>
             <option value="Green Living">Green Living</option>
@@ -474,13 +474,15 @@ export const CommunityPollsSection: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Category</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Category <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-1 focus:ring-teal-700"
                   >
-                    <option value="Infrastructure & EV">Infrastructure & EV</option>
+                    <option value="Infrastructure & Utilities">Infrastructure & Utilities</option>
                     <option value="Amenities & Energy">Amenities & Energy</option>
                     <option value="Society Rules & Security">Society Rules & Security</option>
                     <option value="Green Living">Green Living</option>

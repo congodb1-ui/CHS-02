@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
             <div className="space-y-1.5 text-slate-400 text-[11px]">
               <div className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-teal-400 shrink-0 mt-0.5" />
-                <span>Kool Homes Solitaire, Kausar Baugh, Kondhwa, Pune, Maharashtra 411048 (Kausar Baugh, NIBM)</span>
+                <span>Kool Homes Solitaire, Kausar Baugh, NIBM, Pune, Maharashtra 411048</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Building className="w-3.5 h-3.5 text-teal-400 shrink-0" />

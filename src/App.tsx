@@ -26,6 +26,7 @@ import { BookingModal } from './components/BookingModal';
 import { LoginModal } from './components/LoginModal';
 import { AIChatModal } from './components/AIChatModal';
 import { AIFloatingWidget } from './components/AIFloatingWidget';
+import { AdminSettingsModal } from './components/AdminSettingsModal';
 
 const AppContent: React.FC = () => {
   const {
@@ -83,6 +84,7 @@ const AppContent: React.FC = () => {
       <EmergencyModal />
       <BookingModal />
       <LoginModal />
+      <AdminSettingsModal />
       <AIChatModal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}

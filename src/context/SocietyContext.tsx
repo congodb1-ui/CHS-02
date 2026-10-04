@@ -153,12 +153,20 @@ interface SocietyContextType {
   workOrders: WorkOrder[];
   onboardVendor: (vendor: Omit<Vendor, 'id' | 'rating' | 'registeredDate'>) => string;
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
+  deleteVendor: (id: string) => void;
   addVendorQuote: (quote: Omit<VendorQuote, 'id' | 'submittedDate' | 'status'>) => string;
-  approveQuoteAndReleaseWorkOrder: (quoteId: string, startDate?: string, targetCompletionDate?: string) => string;
+  updateVendorQuote: (id: string, updates: Partial<VendorQuote>) => void;
+  deleteVendorQuote: (id: string) => void;
+  approveQuoteAndReleaseWorkOrder: (quoteId: string, startDate?: string, targetCompletionDate?: string, customTerms?: string[]) => string;
+  updateWorkOrder: (id: string, updates: Partial<WorkOrder>) => void;
+  deleteWorkOrder: (id: string) => void;
   approveWorkOrder: (workOrderId: string, secretaryComments: string) => void;
   requestWorkOrderChanges: (workOrderId: string, secretaryComments: string) => void;
   updateWorkOrderProgress: (workOrderId: string, progress: number, workStatus?: WorkOrder['workStatus']) => void;
   addWorkOrderPayment: (workOrderId: string, payment: Omit<WorkOrderPayment, 'id' | 'workOrderId'>) => string;
+  defaultTermsAndConditions: string[];
+  updateDefaultTermsAndConditions: (terms: string[]) => void;
+  resetDefaultTermsAndConditions: () => void;
   // Admin Data Overrides
   adminUpdateTicket: (id: string, data: Partial<ComplaintTicket>) => void;
   adminUpdateBooking: (id: string, data: Partial<AmenityBooking>) => void;
@@ -499,6 +507,32 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     localStorage.setItem('solitaire_work_orders', JSON.stringify(workOrders));
   }, [workOrders]);
+
+  // Default Terms & Conditions for Work Orders
+  const [defaultTermsAndConditions, setDefaultTermsAndConditions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('solitaire_wo_terms');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_SOCIETY_PROFILE.workOrderDefaults?.defaultTerms || [
+      'Vendor must adhere to statutory safety norms & labor compliance during site execution.',
+      'All materials supplied must conform to society specifications with minimum 12-month manufacturer warranty.',
+      'Work must be executed strictly between 09:00 AM to 06:00 PM on weekdays to avoid resident disturbance.',
+      'Defect Liability Period (DLP) of 12 months applies with 10% retention until final sign-off.',
+      'Disputes subject to Pune District Co-operative Court jurisdiction under MCS Act 1960.',
+    ];
+  });
+
+  const updateDefaultTermsAndConditions = (terms: string[]) => {
+    setDefaultTermsAndConditions(terms);
+    localStorage.setItem('solitaire_wo_terms', JSON.stringify(terms));
+  };
+
+  const resetDefaultTermsAndConditions = () => {
+    const original = DEFAULT_SOCIETY_PROFILE.workOrderDefaults?.defaultTerms || [];
+    setDefaultTermsAndConditions(original);
+    localStorage.setItem('solitaire_wo_terms', JSON.stringify(original));
+  };
 
   // Community Polls State with localStorage
   const [polls, setPolls] = useState<CommunityPoll[]>(() => {
@@ -1368,6 +1402,34 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return newId;
   };
 
+  const updateVendor = (id: string, updates: Partial<Vendor>) => {
+    setVendors((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, ...updates } : v))
+    );
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vendors')
+        .update(updates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update vendor error:', error);
+        });
+    }
+  };
+
+  const deleteVendor = (id: string) => {
+    setVendors((prev) => prev.filter((v) => v.id !== id));
+    if (isSupabaseConfigured) {
+      supabase
+        .from('vendors')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Delete vendor error:', error);
+        });
+    }
+  };
+
   const addVendorQuote = (quote: Omit<VendorQuote, 'id' | 'submittedDate' | 'status'>): string => {
     const today = new Date().toISOString().split('T')[0];
     const newQuoteId = `QTE-${Date.now().toString().slice(-4)}`;
@@ -1390,6 +1452,7 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       quotedAmount: grandTotal,
       submittedDate: today,
       status: 'Pending Review',
+      termsAndConditions: quote.termsAndConditions || defaultTermsAndConditions,
     };
     setQuotes((prev) => [newQuote, ...prev]);
 
@@ -1425,10 +1488,39 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return newQuoteId;
   };
 
+  const updateVendorQuote = (id: string, updates: Partial<VendorQuote>) => {
+    setQuotes((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, ...updates } : q))
+    );
+    if (isSupabaseConfigured) {
+      supabase
+        .from('procurement_orders')
+        .update(updates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update quote error:', error);
+        });
+    }
+  };
+
+  const deleteVendorQuote = (id: string) => {
+    setQuotes((prev) => prev.filter((q) => q.id !== id));
+    if (isSupabaseConfigured) {
+      supabase
+        .from('procurement_orders')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Delete quote error:', error);
+        });
+    }
+  };
+
   const approveQuoteAndReleaseWorkOrder = (
     quoteId: string,
     startDate?: string,
-    targetCompletionDate?: string
+    targetCompletionDate?: string,
+    customTerms?: string[]
   ): string => {
     const selectedQuote = quotes.find((q) => q.id === quoteId);
     if (!selectedQuote) return '';
@@ -1491,6 +1583,8 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       releasedBy: userName || 'MC Member',
       releasedAt: today,
       payments: [],
+      termsAndConditions: customTerms || selectedQuote.termsAndConditions || defaultTermsAndConditions,
+      warrantyMonths: selectedQuote.warrantyMonths || 12,
     };
 
     setWorkOrders((prev) => [newWO, ...prev]);
@@ -1528,6 +1622,34 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     return newWoId;
+  };
+
+  const updateWorkOrder = (id: string, updates: Partial<WorkOrder>) => {
+    setWorkOrders((prev) =>
+      prev.map((wo) => (wo.id === id ? { ...wo, ...updates } : wo))
+    );
+    if (isSupabaseConfigured) {
+      supabase
+        .from('work_orders')
+        .update(updates)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Update work order error:', error);
+        });
+    }
+  };
+
+  const deleteWorkOrder = (id: string) => {
+    setWorkOrders((prev) => prev.filter((wo) => wo.id !== id));
+    if (isSupabaseConfigured) {
+      supabase
+        .from('work_orders')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase] Delete work order error:', error);
+        });
+    }
   };
 
   const approveWorkOrder = (workOrderId: string, secretaryComments: string) => {
@@ -2076,12 +2198,21 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         quotes,
         workOrders,
         onboardVendor,
+        updateVendor,
+        deleteVendor,
         addVendorQuote,
+        updateVendorQuote,
+        deleteVendorQuote,
         approveQuoteAndReleaseWorkOrder,
+        updateWorkOrder,
+        deleteWorkOrder,
         approveWorkOrder,
         requestWorkOrderChanges,
         updateWorkOrderProgress,
         addWorkOrderPayment,
+        defaultTermsAndConditions,
+        updateDefaultTermsAndConditions,
+        resetDefaultTermsAndConditions,
         adminUpdateTicket,
         adminUpdateBooking,
         adminUpdateTenantApp,
@@ -2091,6 +2222,12 @@ export const SocietyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         castVote,
         createPoll,
         closePoll,
+        societyDetails,
+        updateSocietyDetails,
+        isSocietySettingsModalOpen,
+        setIsSocietySettingsModalOpen,
+        openSocietySettingsModal,
+        closeSocietySettingsModal,
         supabaseUser,
         isSupabaseOnline,
         authLoading,

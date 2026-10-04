@@ -36,6 +36,9 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Eye,
+  Edit2,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 
 export const ProcurementView: React.FC = () => {
@@ -45,9 +48,12 @@ export const ProcurementView: React.FC = () => {
     quotes,
     vendors,
     onboardVendor,
+    updateVendor,
     addVendorQuote,
+    updateVendorQuote,
     approveQuoteAndReleaseWorkOrder,
     approveWorkOrder,
+    updateWorkOrder,
     requestWorkOrderChanges,
     updateWorkOrderProgress,
     addWorkOrderPayment,
@@ -67,6 +73,25 @@ export const ProcurementView: React.FC = () => {
   const [showReleaseModal, setShowReleaseModal] = useState<VendorQuote | null>(null);
   const [secretaryComments, setSecretaryComments] = useState('');
   const [approvalError, setApprovalError] = useState('');
+
+  // Edit Modals state (CRUD for Vendors, Quotes, Work Orders)
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [editingQuote, setEditingQuote] = useState<VendorQuote | null>(null);
+  const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
+
+  // Standard terms list & editor state
+  const DEFAULT_WO_TERMS = useMemo(
+    () => [
+      '1. Work must strictly comply with Maharashtra Co-operative Societies Act 1960 and local municipal norms.',
+      '2. Contractor assumes full liability for worker safety, ESI, PF, and comprehensive accident insurance on site.',
+      '3. 5% retention money will be withheld for a 60-day defect liability period post final inspection sign-off.',
+      '4. Permitted site working hours are 09:00 AM to 06:00 PM on weekdays and Saturdays. Heavy drilling prohibited on Sundays.',
+      '5. Daily cleanup, debris removal from service shafts/lobbies, and society green area protection is strictly mandatory.',
+    ],
+    []
+  );
+  const [woTermsList, setWoTermsList] = useState<string[]>(DEFAULT_WO_TERMS);
+  const [newClauseInput, setNewClauseInput] = useState('');
 
   // Vendor Onboarding Form State
   const [vendorName, setVendorName] = useState('');
@@ -701,6 +726,24 @@ export const ProcurementView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {isAuthorized && (
+                        <button
+                          onClick={() => {
+                            setEditingWorkOrder(wo);
+                            setWoTermsList(
+                              wo.termsAndConditions && wo.termsAndConditions.length > 0
+                                ? wo.termsAndConditions
+                                : DEFAULT_WO_TERMS
+                            );
+                          }}
+                          className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer flex items-center gap-1 transition-colors"
+                          title="Modify Work Order & Customizable Terms"
+                        >
+                          <Edit2 className="w-3 h-3 text-slate-600" />
+                          <span>Edit WO & Terms</span>
+                        </button>
+                      )}
+
                       {isAuthorized && wo.approvalStatus !== 'Approved' && (
                         <button
                           onClick={() => setShowSecretaryApprovalModal(wo)}
@@ -809,14 +852,26 @@ export const ProcurementView: React.FC = () => {
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 font-mono">Date: {q.submittedDate}</span>
-                  {isAuthorized && q.status === 'Pending Review' && (
-                    <button
-                      onClick={() => setShowReleaseModal(q)}
-                      className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
-                    >
-                      Convert to Work Order &rarr;
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isAuthorized && (
+                      <button
+                        onClick={() => setEditingQuote(q)}
+                        className="p-1 px-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer flex items-center gap-1 transition-colors"
+                        title="Edit Quotation Details"
+                      >
+                        <Edit2 className="w-3 h-3 text-slate-600" />
+                        <span>Edit Quote</span>
+                      </button>
+                    )}
+                    {isAuthorized && q.status === 'Pending Review' && (
+                      <button
+                        onClick={() => setShowReleaseModal(q)}
+                        className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+                      >
+                        Convert to Work Order &rarr;
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -860,8 +915,20 @@ export const ProcurementView: React.FC = () => {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Vendor ID: {vnd.id}</span>
-                  <span className="text-emerald-700 font-semibold">Verified Vendor</span>
+                  <span className="font-mono">ID: {vnd.id}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-700 font-semibold">{vnd.contractStatus || 'Verified Vendor'}</span>
+                    {isAuthorized && (
+                      <button
+                        onClick={() => setEditingVendor(vnd)}
+                        className="px-2 py-0.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded cursor-pointer flex items-center gap-1 transition-colors"
+                        title="Edit Vendor Profile"
+                      >
+                        <Edit2 className="w-3 h-3 text-slate-600" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -886,23 +953,27 @@ export const ProcurementView: React.FC = () => {
             <form onSubmit={handleOnboardVendor} className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Company / Enterprise Name</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Company / Enterprise Name <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Apex Security Solutions Pvt Ltd"
                     value={vendorName}
                     onChange={(e) => setVendorName(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Category</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Category <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={vendorCategory}
                     onChange={(e) => setVendorCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   >
                     <option value="STP & Water">STP & Water</option>
                     <option value="Elevators / Lifts">Elevators / Lifts</option>
@@ -918,57 +989,67 @@ export const ProcurementView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Contact Person</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Contact Person <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Mr. Anil Deshmukh"
                     value={vendorContact}
                     onChange={(e) => setVendorContact(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Mobile Phone</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Mobile Phone <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="tel"
                     required
                     placeholder="+91 98220 00000"
                     value={vendorPhone}
                     onChange={(e) => setVendorPhone(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Email Address <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="email"
                     required
                     placeholder="contracts@vendor.com"
                     value={vendorEmail}
                     onChange={(e) => setVendorEmail(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">GSTIN Number (Mandatory for TDS)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    GSTIN Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="27AAACL1234A1Z5"
                     value={vendorGst}
                     onChange={(e) => setVendorGst(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono uppercase text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg font-mono uppercase text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">PAN Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    PAN Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="AAACL1234A"
@@ -981,10 +1062,12 @@ export const ProcurementView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Bank Name & Branch</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Bank Name & Branch <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="HDFC Bank, Kondhwa / NIBM"
+                    placeholder="HDFC Bank, Kausar Baugh, NIBM"
                     value={vendorBankName}
                     onChange={(e) => setVendorBankName(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
@@ -992,7 +1075,9 @@ export const ProcurementView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Account Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Account Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="50200012345678"
@@ -1003,7 +1088,9 @@ export const ProcurementView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">IFSC Code</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    IFSC Code <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="HDFC0000241"
@@ -1015,10 +1102,12 @@ export const ProcurementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Registered Business Address</label>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Registered Business Address <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="Plot 18, Commercial Plaza, Kausar Baugh, Kondhwa, Pune - 411048"
+                  placeholder="Plot 18, Commercial Plaza, Kausar Baugh, NIBM, Pune - 411048"
                   value={vendorAddress}
                   onChange={(e) => setVendorAddress(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
@@ -1026,7 +1115,9 @@ export const ProcurementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Compliance Document URL / Upload Link</label>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Compliance Document URL / Upload Link <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   placeholder="https://docs.cleanaqua.co.in/gst-certificate.pdf"
@@ -1073,22 +1164,26 @@ export const ProcurementView: React.FC = () => {
             <form onSubmit={handleCreateMultiItemQuote} className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Project / Tender Title</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Project / Tender Title <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={quoteProjectTitle}
                     onChange={(e) => setQuoteProjectTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Vendor Selection</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Vendor Selection <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={quoteVendorId}
                     onChange={(e) => setQuoteVendorId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900 font-semibold"
                   >
                     {vendors.map((v) => (
                       <option key={v.id} value={v.id}>
@@ -1101,36 +1196,42 @@ export const ProcurementView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Quote Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Quote Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={quoteNumber}
                     onChange={(e) => setQuoteNumber(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg font-mono text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Validity Date</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Validity Date <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="date"
                     required
                     value={quoteValidity}
                     onChange={(e) => setQuoteValidity(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Tax Rate (GST %)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Tax Rate (GST %) <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="number"
                     min="0"
                     max="28"
                     value={quoteGstPercent}
                     onChange={(e) => setQuoteGstPercent(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg font-mono text-slate-900"
                   />
                 </div>
               </div>

@@ -75,7 +75,7 @@ export const HomeView: React.FC = () => {
     },
     {
       title: 'FastTag Vehicle Parking & Bays',
-      desc: 'Check visitor pass limits, EV charging bay rules, and FastTag automated gate sensor troubleshooting.',
+      desc: 'Check visitor pass limits, stilt & basement bay rules, and FastTag automated gate sensor troubleshooting.',
       icon: Car,
       samplePrompt: 'How do I register a new vehicle or get a FastTag visitor pass for my guest?',
       badge: 'Parking & FastTag',

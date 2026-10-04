@@ -17,10 +17,17 @@ import {
   KeyRound,
   FileText,
   Car,
+  Maximize2,
+  Layers,
+  MapPin,
+  CheckCircle2,
 } from 'lucide-react';
 import heroImage from '../../assets/images/hero_solitaire_society_1790929946633.jpg';
 import poolImage from '../../assets/images/amenity_swimming_pool_1790929965312.jpg';
 import gymImage from '../../assets/images/amenity_modern_gym_1790929982674.jpg';
+import layoutImg from '../../assets/images/solitaire_layout_1791127831982.jpg';
+import clubhouseImg from '../../assets/images/solitaire_clubhouse_1791127802446.jpg';
+import amenitiesImg from '../../assets/images/solitaire_amenities_1791127816486.jpg';
 
 interface PublicLandingViewProps {
   onOpenLogin: () => void;
@@ -28,10 +35,37 @@ interface PublicLandingViewProps {
 }
 
 export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogin, onOpenRegister }) => {
-  const { notices, loginAsRole, openAiWithPrompt } = useSociety();
+  const { notices, openAiWithPrompt, societyDetails } = useSociety();
+  const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; title: string; subtitle: string } | null>(null);
 
   return (
     <div className="space-y-12 pb-16 animate-in fade-in duration-300">
+      {/* Lightbox Modal for Campus Images */}
+      {selectedPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 bg-slate-950 flex items-center justify-between text-white border-b border-slate-800">
+              <div>
+                <h3 className="font-bold text-sm">{selectedPhoto.title}</h3>
+                <p className="text-xs text-slate-400">{selectedPhoto.subtitle}</p>
+              </div>
+              <button
+                onClick={() => setSelectedPhoto(null)}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-2 overflow-auto flex items-center justify-center bg-black/50">
+              <img src={selectedPhoto.src} alt={selectedPhoto.title} className="max-h-[75vh] w-auto object-contain rounded-lg" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-2xl">
         <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay">
@@ -44,7 +78,7 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
         <div className="relative z-10 px-6 sm:px-12 py-16 sm:py-24 max-w-4xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/20 border border-teal-400/40 text-teal-300 text-xs font-semibold uppercase tracking-wider backdrop-blur-xs">
             <Building2 className="w-3.5 h-3.5 text-teal-400" />
-            <span>Kool Homes Solitaire CHS Ltd. · Reg. PNA/HSG/TC/12492/2018</span>
+            <span>Kool Homes Solitaire CHS Ltd. · MahaRERA {societyDetails?.reraRegNo || 'P52100008192'}</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
@@ -52,8 +86,8 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
           </h1>
 
           <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
-            Welcome to Solitaire Cooperative Housing Society (Towers A & B, Kool Homes Solitaire, Kausar Baugh, Kondhwa, Pune, Maharashtra 411048 · Kausar Baugh, NIBM).
-            Secure portal for amenity reservations, vehicle FastTag parking, vendor procurement, and managing committee governance.
+            Welcome to Solitaire Cooperative Housing Society (Kool Homes Solitaire, Kausar Baugh, NIBM, Pune, Maharashtra 411048).
+            Spanning {societyDetails?.landArea || '1.24 Acres'} with {societyDetails?.activeTowers?.length || 3} Towers, {societyDetails?.totalFloors || 6} Floors, and {societyDetails?.totalUnits || 200} Residential Units under Reg. No. {societyDetails?.societyRegNo || 'PNA/HSG/TC/12492/2018'}.
           </p>
 
           {/* Action CTAs */}
@@ -91,50 +125,148 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
         </div>
       </div>
 
-      {/* Quick Demo Role Switcher Strip */}
-      <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-teal-50 text-teal-700 rounded-lg">
-            <ShieldCheck className="w-5 h-5" />
+      {/* Executive Security & Verification Gate Strip */}
+      <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 bg-teal-50 text-teal-700 rounded-xl">
+            <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Explore Portal With Authorized Role</h3>
-            <p className="text-xs text-slate-500">Test how permissions, dashboards, and access gate adapt live</p>
+            <h3 className="text-sm font-bold text-slate-900">Secure Single-Primary-Member Verification Gate</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Access to Solitaire CHS registers, vendor procurement, and accounting is restricted strictly to authorized profiles in <code className="text-teal-700 font-mono font-semibold">public.members</code>.
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           <button
-            onClick={() => loginAsRole('resident', 'usr-001')}
-            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            onClick={onOpenLogin}
+            className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
           >
-            Resident (Flat A-402)
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Sign In to Verified Account</span>
           </button>
           <button
-            onClick={() => loginAsRole('resident', 'usr-010')}
-            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-            title="Experience Pending Approval verification state"
+            onClick={onOpenRegister}
+            className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
           >
-            Pending User (B-503)
+            <span>Register Flat Unit</span>
           </button>
-          <button
-            onClick={() => loginAsRole('supervisor', 'usr-004')}
-            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+        </div>
+      </div>
+
+      {/* Society Campus Architecture & Master Layout Showcase */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-teal-700" />
+              <h2 className="text-xl font-bold text-slate-900">Society Campus Architecture & Master Facilities</h2>
+            </div>
+            <p className="text-xs text-slate-500">
+              Kool Homes Solitaire · Kausar Baugh, NIBM · 1.24 Acres · 3 Towers · 6 Floors · 200 Units · MahaRERA P52100008192
+            </p>
+          </div>
+          <span className="text-xs font-semibold text-slate-400">Click any image to inspect high-resolution blueprint</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Master Site Layout */}
+          <div
+            onClick={() =>
+              setSelectedPhoto({
+                src: layoutImg,
+                title: 'Master Site Layout Plan — Kool Homes Solitaire CHS',
+                subtitle: '1.24 Acres · Building A, Building B, Building C, Amphitheater Lawn, Swimming Pool & Clubhouse',
+              })
+            }
+            className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"
           >
-            Supervisor
-          </button>
-          <button
-            onClick={() => loginAsRole('mc_member', 'usr-002')}
-            className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            <div className="h-52 relative overflow-hidden bg-slate-100">
+              <img src={layoutImg} alt="Master Layout Plan" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-teal-400" />
+                <span>Site Layout Blueprint</span>
+              </div>
+              <div className="absolute bottom-3 right-3 bg-white/90 text-slate-900 p-1.5 rounded-lg shadow-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <Maximize2 className="w-3.5 h-3.5 text-slate-700" />
+              </div>
+            </div>
+            <div className="p-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-900">Architectural Master Plan</span>
+                <span className="text-teal-700 font-mono font-bold text-[11px]">1.24 Acres</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Site layout showing Buildings A, B & C, central swimming pool, amphitheater round lawn, security gates, and perimeter driveway.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: Modern Clubhouse */}
+          <div
+            onClick={() =>
+              setSelectedPhoto({
+                src: clubhouseImg,
+                title: 'Executive Clubhouse & Portico — Kool Homes Solitaire CHS',
+                subtitle: 'Two-story community center with glass facade, multipurpose banquet, gymnasium, and terrace lawn',
+              })
+            }
+            className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"
           >
-            MC Member
-          </button>
-          <button
-            onClick={() => loginAsRole('admin', 'usr-003')}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            <div className="h-52 relative overflow-hidden bg-slate-100">
+              <img src={clubhouseImg} alt="Club House" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5 text-teal-400" />
+                <span>Club House</span>
+              </div>
+              <div className="absolute bottom-3 right-3 bg-white/90 text-slate-900 p-1.5 rounded-lg shadow-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <Maximize2 className="w-3.5 h-3.5 text-slate-700" />
+              </div>
+            </div>
+            <div className="p-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-900">Clubhouse & Community Center</span>
+                <span className="text-emerald-700 font-semibold text-[11px]">Active Facility</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Curved architectural facade with portico columns, glass reflection windows, indoor sports hall, and outdoor seating plaza.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Courtyard Amenities */}
+          <div
+            onClick={() =>
+              setSelectedPhoto({
+                src: amenitiesImg,
+                title: 'Central Amphitheater Lawn & Courtyard — Kool Homes Solitaire CHS',
+                subtitle: 'Residential towers overlooking the stepped amphitheater lawn, swimming pool deck, and landscaped gardens',
+              })
+            }
+            className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:border-teal-400 hover:shadow-md transition-all cursor-pointer"
           >
-            Admin (Full Access)
-          </button>
+            <div className="h-52 relative overflow-hidden bg-slate-100">
+              <img src={amenitiesImg} alt="Courtyard Amenities" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1">
+                <Waves className="w-3.5 h-3.5 text-teal-400" />
+                <span>Courtyard & Pool</span>
+              </div>
+              <div className="absolute bottom-3 right-3 bg-white/90 text-slate-900 p-1.5 rounded-lg shadow-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                <Maximize2 className="w-3.5 h-3.5 text-slate-700" />
+              </div>
+            </div>
+            <div className="p-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-900">Amphitheater & Pool Deck</span>
+                <span className="text-teal-700 font-semibold text-[11px]">Towers A, B & C</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Central landscaped amphitheater with circular manicured lawn, pool deck cabanas, kids play area, and panoramic mountain views.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -183,7 +315,7 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Estate Amenities & Operations</h2>
-            <p className="text-xs text-slate-500">Available to verified residents across Towers A & B</p>
+            <p className="text-xs text-slate-500">Available to verified residents across Towers A, B & C</p>
           </div>
           <button
             onClick={onOpenLogin}
@@ -233,12 +365,12 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="h-44 bg-gradient-to-br from-teal-900 to-slate-900 p-6 flex flex-col justify-end text-white">
-              <div className="bg-teal-500/30 text-teal-300 w-fit px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1 mb-2">
+            <div className="h-44 relative overflow-hidden">
+              <img src={clubhouseImg} alt="Clubhouse Banquet" className="w-full h-full object-cover" />
+              <div className="absolute top-3 left-3 bg-teal-900/80 backdrop-blur-xs text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
                 <span>Clubhouse Banquet</span>
               </div>
-              <h3 className="text-lg font-bold">Community Banquet & Party Lawn</h3>
             </div>
             <div className="p-5 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">
@@ -268,9 +400,9 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
             <div className="p-2 bg-teal-100/60 text-teal-800 rounded-lg w-fit">
               <Building2 className="w-5 h-5" />
             </div>
-            <h4 className="text-sm font-bold text-slate-900">Predefined Flats (101 - 1504)</h4>
+            <h4 className="text-sm font-bold text-slate-900">Predefined Flats (Towers A, B & C)</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              120 flats across 15 residential floors in Towers A & B. Zero duplicates allowed.
+              200 units across Towers A, B and upcoming Tower C in Kausar Baugh, NIBM. Zero duplicate accounts allowed.
             </p>
           </div>
 
@@ -298,3 +430,4 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
     </div>
   );
 };
+

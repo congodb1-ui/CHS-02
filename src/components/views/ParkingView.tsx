@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
-  Zap,
   Filter,
   Trash2,
   Edit2,
@@ -72,7 +71,6 @@ export const ParkingView: React.FC = () => {
   const [newRfid, setNewRfid] = useState('');
   const [newSticker, setNewSticker] = useState('');
   const [newSlot, setNewSlot] = useState('P-A-101');
-  const [isEv, setIsEv] = useState(false);
 
   // New Visitor Pass form state
   const [guestName, setGuestName] = useState('');
@@ -100,7 +98,6 @@ export const ParkingView: React.FC = () => {
       slots.push({
         slotNo: `P-A-${i}`,
         tower: 'Tower A',
-        isEvDedicated: i >= 125,
       });
     }
     // Tower B
@@ -108,7 +105,6 @@ export const ParkingView: React.FC = () => {
       slots.push({
         slotNo: `P-B-${i}`,
         tower: 'Tower B',
-        isEvDedicated: i >= 125,
       });
     }
     return slots;
@@ -152,7 +148,6 @@ export const ParkingView: React.FC = () => {
 
       const matchesType =
         typeFilter === 'All' ||
-        (typeFilter === 'EV' && v.isEv) ||
         (typeFilter === '4-Wheeler' && v.vehicleType.includes('4-Wheeler')) ||
         (typeFilter === '2-Wheeler' && v.vehicleType.includes('2-Wheeler'));
 
@@ -167,7 +162,7 @@ export const ParkingView: React.FC = () => {
 
   // Quick stats
   const totalAllocated = vehicles.length;
-  const totalEv = vehicles.filter((v) => v.isEv).length;
+  const rfidIssuedCount = vehicles.filter((v) => Boolean(v.rfidTagId)).length;
   const activeVisitors = visitorPasses.filter((vp) => vp.status === 'Active').length;
 
   const handleCreateVehicle = (e: React.FormEvent) => {
@@ -183,7 +178,6 @@ export const ParkingView: React.FC = () => {
       rfidTagId: newRfid || `FASTAG-${newFlat.replace('-', '')}-${Date.now().toString().slice(-4)}`,
       parkingStickerNo: newSticker || `SOL-STK-${Date.now().toString().slice(-4)}`,
       parkingSlotNo: newSlot.toUpperCase(),
-      isEv,
     });
 
     setShowAddVehicleModal(false);
@@ -222,7 +216,7 @@ export const ParkingView: React.FC = () => {
 
   // CSV Export
   const handleExportCsv = () => {
-    const headers = ['Flat Number', 'Owner/Tenant Name', 'Vehicle Type', 'Make & Model', 'License Plate', 'RFID Tag ID', 'Parking Sticker #', 'Allocated Slot #', 'Is EV', 'Registered Date'];
+    const headers = ['Flat Number', 'Owner/Tenant Name', 'Vehicle Type', 'Make & Model', 'License Plate', 'RFID Tag ID', 'Parking Sticker #', 'Allocated Slot #', 'Registered Date'];
     const rows = vehicles.map((v) => [
       `"${v.flatNo}"`,
       `"${v.ownerName}"`,
@@ -232,7 +226,6 @@ export const ParkingView: React.FC = () => {
       `"${v.rfidTagId}"`,
       `"${v.parkingStickerNo}"`,
       `"${v.parkingSlotNo}"`,
-      `"${v.isEv ? 'Yes' : 'No'}"`,
       `"${v.registeredDate}"`,
     ]);
 
@@ -280,7 +273,6 @@ export const ParkingView: React.FC = () => {
           const rfid = cols[5] || `FASTAG-${flat.replace('-', '')}`;
           const sticker = cols[6] || `SOL-STK-${i}`;
           const slot = cols[7] || `P-A-${100 + i}`;
-          const isEvVal = cols[8]?.toLowerCase() === 'yes' || cols[8]?.toLowerCase() === 'true';
 
           importedList.push({
             flatNo: flat,
@@ -291,13 +283,12 @@ export const ParkingView: React.FC = () => {
             rfidTagId: rfid,
             parkingStickerNo: sticker,
             parkingSlotNo: slot,
-            isEv: isEvVal,
           });
         }
       }
 
       if (importedList.length === 0) {
-        setCsvError('No valid rows parsed. Expected format: Flat,Owner,Type,Make,Plate,RFID,Sticker,Slot,IsEV');
+        setCsvError('No valid rows parsed. Expected format: Flat,Owner,Type,Make,Plate,RFID,Sticker,Slot');
         return;
       }
 
@@ -376,12 +367,12 @@ export const ParkingView: React.FC = () => {
         </div>
 
         <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">EV Charging Vehicles</span>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">FastTag RFID Active</span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <Zap className="w-4 h-4 text-emerald-600" />
-            <span className="text-2xl font-black text-emerald-700 tabular-nums">{totalEv}</span>
+            <ShieldCheck className="w-4 h-4 text-teal-600" />
+            <span className="text-2xl font-black text-teal-800 tabular-nums">{rfidIssuedCount}</span>
           </div>
-          <span className="text-[11px] text-emerald-600 block">Dedicated EV Slots Active</span>
+          <span className="text-[11px] text-teal-700 block">Boom Barrier Encoded</span>
         </div>
 
         <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs">
@@ -459,10 +450,6 @@ export const ParkingView: React.FC = () => {
                 <span className="text-slate-600">Occupied (Resident)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 rounded bg-emerald-700 border border-emerald-300 inline-block"></span>
-                <span className="text-slate-600">EV Dedicated</span>
-              </div>
-              <div className="flex items-center gap-1.5">
                 <span className="w-3.5 h-3.5 rounded bg-amber-500 inline-block"></span>
                 <span className="text-slate-600">Visitor Occupied</span>
               </div>
@@ -521,11 +508,7 @@ export const ParkingView: React.FC = () => {
                         onClick={() => setSelectedSlot(slot.slotNo)}
                         className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[72px] relative group ${
                           isOccupied
-                            ? vehicle?.isEv
-                              ? 'bg-emerald-950 text-white border-emerald-700 ring-1 ring-emerald-500'
-                              : 'bg-slate-900 text-white border-slate-800'
-                            : slot.isEvDedicated
-                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                            ? 'bg-slate-900 text-white border-slate-800'
                             : 'bg-emerald-500/10 text-emerald-900 border-emerald-300 hover:bg-emerald-500/20'
                         }`}
                         title={
@@ -577,11 +560,7 @@ export const ParkingView: React.FC = () => {
                         onClick={() => setSelectedSlot(slot.slotNo)}
                         className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[72px] relative group ${
                           isOccupied
-                            ? vehicle?.isEv
-                              ? 'bg-emerald-950 text-white border-emerald-700 ring-1 ring-emerald-500'
-                              : 'bg-slate-900 text-white border-slate-800'
-                            : slot.isEvDedicated
-                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                            ? 'bg-slate-900 text-white border-slate-800'
                             : 'bg-emerald-500/10 text-emerald-900 border-emerald-300 hover:bg-emerald-500/20'
                         }`}
                         title={
@@ -678,7 +657,6 @@ export const ParkingView: React.FC = () => {
                 <option value="All">All Vehicle Types</option>
                 <option value="4-Wheeler">4-Wheelers Only</option>
                 <option value="2-Wheeler">2-Wheelers Only</option>
-                <option value="EV">EVs (Electric) Only</option>
               </select>
 
               <select
@@ -727,13 +705,7 @@ export const ParkingView: React.FC = () => {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5">
-                            {v.isEv ? (
-                              <span className="p-1 rounded bg-emerald-100 text-emerald-800" title="Electric Vehicle">
-                                <Zap className="w-3 h-3" />
-                              </span>
-                            ) : (
-                              <Car className="w-3.5 h-3.5 text-slate-400" />
-                            )}
+                            <Car className="w-3.5 h-3.5 text-teal-700" />
                             <div>
                               <span className="font-semibold text-slate-900 block">{v.vehicleType}</span>
                               <span className="text-[10px] text-slate-400 block">{v.makeModel}</span>
@@ -939,7 +911,6 @@ export const ParkingView: React.FC = () => {
                       rfidTagId: `FASTAG-${allocFlat.replace('-', '')}-RES`,
                       parkingStickerNo: `SOL-STK-${allocFlat.replace('-', '')}`,
                       parkingSlotNo: allocSlotNo,
-                      isEv: false,
                     });
                     setAllocResidentName('');
                     alert(`Slot ${allocSlotNo} successfully allocated to Flat ${allocFlat}!`);
@@ -956,7 +927,7 @@ export const ParkingView: React.FC = () => {
               <ul className="space-y-2 list-disc pl-4 text-slate-600 leading-relaxed">
                 <li>Each registered flat is entitled to 1 covered 4-Wheeler slot and 1 2-Wheeler bay per society allotment schedule.</li>
                 <li>Tenants must provide police verification receipt and Owner NOC prior to bay activation.</li>
-                <li>EV slots with 3.3 kW smart metering chargers (P-A-125..130 & P-B-125..130) are prioritized for pure electric vehicles.</li>
+                <li>Demarcated bays (P-A-101..130 & P-B-101..130) are numbered and linked to the automated RFID boom barriers at Gates 1 & 2.</li>
                 <li>Visitor parking is strictly restricted to outside guests with an active 4-hour pass. Overnight resident parking in visitor slots incurs ₹500 penalty.</li>
               </ul>
             </div>
@@ -981,11 +952,13 @@ export const ParkingView: React.FC = () => {
             <form onSubmit={handleCreateVehicle} className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Predefined Flat (A-101 to B-1504)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Predefined Flat <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={newFlat}
                     onChange={(e) => setNewFlat(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900 focus:border-red-300 focus:outline-none"
                   >
                     {ALL_SOCIETY_FLATS.map((f) => (
                       <option key={f} value={f}>{f}</option>
@@ -994,12 +967,14 @@ export const ParkingView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Owner / Resident Name</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Owner / Resident Name <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
-                    required
                     value={newOwner}
                     onChange={(e) => setNewOwner(e.target.value)}
+                    placeholder="Resident Name"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
                   />
                 </div>
@@ -1007,39 +982,39 @@ export const ParkingView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Vehicle Type</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Vehicle Type <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={newType}
-                    onChange={(e) => {
-                      const val = e.target.value as any;
-                      setNewType(val);
-                      setIsEv(val.includes('EV'));
-                    }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    onChange={(e) => setNewType(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none"
                   >
                     <option value="4-Wheeler">4-Wheeler (Car / SUV)</option>
                     <option value="2-Wheeler">2-Wheeler (Motorcycle / Scooter)</option>
-                    <option value="EV (4-Wheeler)">EV (4-Wheeler Electric)</option>
-                    <option value="EV (2-Wheeler)">EV (2-Wheeler Electric)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">License Plate Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    License Plate Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. MH 12 AB 1234"
                     value={newPlate}
                     onChange={(e) => setNewPlate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 uppercase"
+                    className="w-full px-3 py-2 bg-slate-50 border border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-200 rounded-lg font-mono font-bold text-slate-900 uppercase"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Make & Model</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Make & Model <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. Hyundai Creta (White)"
@@ -1050,11 +1025,13 @@ export const ParkingView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Allocated Slot #</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Allocated Slot # <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={newSlot}
                     onChange={(e) => setNewSlot(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:border-red-300 focus:outline-none"
                   >
                     {allGridSlots.map((s) => (
                       <option key={s.slotNo} value={s.slotNo}>
@@ -1067,7 +1044,9 @@ export const ParkingView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">RFID / FASTag Tag ID</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    RFID / FASTag Tag ID <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. FASTAG-A402-01"
@@ -1078,7 +1057,9 @@ export const ParkingView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Society Windshield Sticker #</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Society Windshield Sticker # <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
                     placeholder="e.g. SOL-STK-0102"
@@ -1087,19 +1068,6 @@ export const ParkingView: React.FC = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono text-slate-900"
                   />
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="evCheckbox"
-                  checked={isEv}
-                  onChange={(e) => setIsEv(e.target.checked)}
-                  className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                />
-                <label htmlFor="evCheckbox" className="text-xs text-slate-700 font-medium">
-                  This is an Electric Vehicle (EV) requiring access to society 3.3kW charging stations
-                </label>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -1138,50 +1106,58 @@ export const ParkingView: React.FC = () => {
 
             <form onSubmit={handleIssuePass} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Guest Full Name</label>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Guest Full Name <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Ramesh Deshpande"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Guest Mobile Phone</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Guest Mobile Phone <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="tel"
                     required
                     placeholder="+91 98220 00000"
                     value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Vehicle License Plate</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Vehicle License Plate <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="MH 12 XX 0000"
                     value={guestPlate}
                     onChange={(e) => setGuestPlate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 uppercase"
+                    className="w-full px-3 py-2 bg-slate-50 border border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-200 rounded-lg font-mono font-bold text-slate-900 uppercase"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Host Flat</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Host Flat <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={hostFlat}
                     onChange={(e) => setHostFlat(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-bold text-slate-900 focus:border-red-300 focus:outline-none"
                   >
                     {ALL_SOCIETY_FLATS.map((f) => (
                       <option key={f} value={f}>{f}</option>
@@ -1190,11 +1166,13 @@ export const ParkingView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Assigned Visitor Bay</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Assigned Visitor Bay <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={assignedVisitorSlot}
                     onChange={(e) => setAssignedVisitorSlot(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-amber-800"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-amber-800 focus:border-red-300 focus:outline-none"
                   >
                     {visitorSlots.map((s) => (
                       <option key={s} value={s}>
@@ -1206,11 +1184,13 @@ export const ParkingView: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Pass Duration</label>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Pass Duration <span className="text-red-500 font-bold">*</span>
+                </label>
                 <select
                   value={passDuration}
                   onChange={(e) => setPassDuration(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none"
                 >
                   <option value="2 hours">2 hours</option>
                   <option value="4 hours">4 hours (Standard max limit)</option>
@@ -1259,7 +1239,7 @@ export const ParkingView: React.FC = () => {
                 Expected column sequence:
                 <br />
                 <code className="text-teal-700 font-mono text-[11px] bg-slate-100 p-1 rounded mt-1 block">
-                  Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot,IsEV
+                  Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot
                 </code>
               </p>
 
@@ -1281,9 +1261,9 @@ export const ParkingView: React.FC = () => {
                 rows={8}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
-                placeholder={`Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot,IsEV
-A-501,Mandar Kulkarni,4-Wheeler,Honda City,MH 12 MN 5501,FASTAG-A501-4W,SOL-STK-0501,P-A-115,No
-B-602,Neha Joshi,EV (4-Wheeler),Tata Tiago EV,MH 12 EV 0602,FASTAG-B602-EV,SOL-STK-0602,P-B-118,Yes`}
+                placeholder={`Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot
+A-501,Mandar Kulkarni,4-Wheeler,Honda City,MH 12 MN 5501,FASTAG-A501-4W,SOL-STK-0501,P-A-115
+B-602,Neha Joshi,4-Wheeler,Tata Tiago,MH 12 NJ 0602,FASTAG-B602-4W,SOL-STK-0602,P-B-118`}
                 className="w-full p-3 font-mono text-[11px] bg-slate-50 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-teal-600"
               />
 
@@ -1291,10 +1271,10 @@ B-602,Neha Joshi,EV (4-Wheeler),Tata Tiago EV,MH 12 EV 0602,FASTAG-B602-EV,SOL-S
                 <button
                   type="button"
                   onClick={() => {
-                    setCsvText(`Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot,IsEV
-A-501,Mandar Kulkarni,4-Wheeler,Honda City,MH 12 MN 5501,FASTAG-A501-4W,SOL-STK-0501,P-A-115,No
-B-602,Neha Joshi,EV (4-Wheeler),Tata Tiago EV,MH 12 EV 0602,FASTAG-B602-EV,SOL-STK-0602,P-B-118,Yes
-A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-0703,P-A-120,No`);
+                    setCsvText(`Flat Number,Owner Name,Vehicle Type,Make & Model,License Plate,RFID Tag,Sticker,Slot
+A-501,Mandar Kulkarni,4-Wheeler,Honda City,MH 12 MN 5501,FASTAG-A501-4W,SOL-STK-0501,P-A-115
+B-602,Neha Joshi,4-Wheeler,Tata Tiago,MH 12 NJ 0602,FASTAG-B602-4W,SOL-STK-0602,P-B-118
+A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-0703,P-A-120`);
                   }}
                   className="text-teal-700 font-semibold hover:underline cursor-pointer"
                 >
@@ -1386,7 +1366,9 @@ A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-
               {/* Vehicle Type & Make/Model */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Vehicle Classification</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Vehicle Classification <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={vehicleEditForm.vehicleType || '4-Wheeler'}
                     onChange={(e) => {
@@ -1394,25 +1376,24 @@ A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-
                       setVehicleEditForm({
                         ...vehicleEditForm,
                         vehicleType: val,
-                        isEv: val.includes('EV'),
                       });
                     }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:border-red-300 focus:outline-none bg-white"
                   >
                     <option value="4-Wheeler">4-Wheeler (Car / SUV)</option>
                     <option value="2-Wheeler">2-Wheeler (Motorcycle / Scooter)</option>
-                    <option value="EV (4-Wheeler)">EV (Electric Car)</option>
-                    <option value="EV (2-Wheeler)">EV (Electric Scooter)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Make & Model</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Make & Model <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={vehicleEditForm.makeModel || ''}
                     onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, makeModel: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg text-slate-900 font-medium bg-white"
                   />
                 </div>
               </div>
@@ -1420,23 +1401,26 @@ A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-
               {/* License Plate & RFID */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">License Plate No.</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    License Plate No. <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={vehicleEditForm.licensePlate || ''}
                     onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, licensePlate: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold uppercase text-slate-900 focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-200 rounded-lg font-mono font-bold uppercase text-slate-900 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">RFID FastTag ID</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    RFID FastTag ID <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
-                    required
                     value={vehicleEditForm.rfidTagId || ''}
                     onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, rfidTagId: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold uppercase text-slate-900 focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold uppercase text-slate-900 bg-white"
                   />
                 </div>
               </div>
@@ -1444,42 +1428,28 @@ A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-
               {/* Slot No & Sticker No */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Allocated Parking Slot</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Allocated Parking Slot <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={vehicleEditForm.parkingSlotNo || ''}
                     onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, parkingSlotNo: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg font-mono font-bold text-slate-900 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Parking Sticker Number</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Parking Sticker Number <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="text"
-                    required
                     value={vehicleEditForm.parkingStickerNo || ''}
                     onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, parkingStickerNo: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-slate-900 focus:outline-teal-700 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-slate-900 bg-white"
                   />
                 </div>
-              </div>
-
-              {/* EV Flag */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-slate-800 block">Electric Vehicle (EV) Charging Allocation</span>
-                  <span className="text-[11px] text-slate-500">Requires society EV smart metering</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(vehicleEditForm.isEv)}
-                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, isEv: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
-                </label>
               </div>
 
               {/* Action Buttons */}

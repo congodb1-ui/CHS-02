@@ -289,11 +289,13 @@ export const HelpdeskView: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Tower</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Tower <span className="text-red-500 font-bold">*</span>
+                </label>
                 <select
                   value={tower}
                   onChange={(e) => setTower(e.target.value as TowerId)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:border-red-300 focus:outline-none"
                 >
                   <option value="Tower A">Tower A</option>
                   <option value="Tower B">Tower B</option>
@@ -302,34 +304,40 @@ export const HelpdeskView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Flat / Unit Number</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Flat / Unit Number <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={flatNo}
                   onChange={(e) => setFlatNo(e.target.value)}
                   placeholder="e.g. A-402"
-                  className="w-full p-2 border border-slate-300 rounded-lg"
+                  className="w-full p-2 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Resident Name</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Resident Name <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={residentName}
                   onChange={(e) => setResidentName(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg"
+                  className="w-full p-2 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Occupancy Status</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Occupancy Status <span className="text-red-500 font-bold">*</span>
+                </label>
                 <select
                   value={residentType}
                   onChange={(e) => setResidentType(e.target.value as any)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:border-red-300 focus:outline-none"
                 >
                   <option value="Owner">Owner Resident</option>
                   <option value="Tenant">Tenant</option>
@@ -339,11 +347,13 @@ export const HelpdeskView: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Category</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Category <span className="text-red-500 font-bold">*</span>
+                </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as any)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:border-red-300 focus:outline-none"
                 >
                   <option value="Plumbing">Plumbing & Shaft Drainage</option>
                   <option value="Lift / Elevator">Lift / Elevator Operational</option>
@@ -357,11 +367,13 @@ export const HelpdeskView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Priority</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Priority <span className="text-red-500 font-bold">*</span>
+                </label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                  className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:border-red-300 focus:outline-none"
                 >
                   <option value="Normal">Normal (SLA: 24–48 Hours)</option>
                   <option value="Urgent">Urgent / Emergency (SLA: 2–4 Hours)</option>
@@ -369,20 +381,22 @@ export const HelpdeskView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-700 font-medium mb-1">Contact Phone</label>
+                <label className="block text-slate-700 font-medium mb-1">
+                  Contact Phone <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="tel"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-lg tabular-nums"
+                  className="w-full p-2 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg tabular-nums"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-slate-700 font-medium mb-1">
-                Detailed Issue Description & Location
+                Detailed Issue Description & Location <span className="text-red-500 font-bold">*</span>
               </label>
               <textarea
                 rows={3}
@@ -390,7 +404,7 @@ export const HelpdeskView: React.FC = () => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe the exact location, timing, and nature of the issue..."
-                className="w-full p-2.5 border border-slate-300 rounded-lg focus:outline-teal-600"
+                className="w-full p-2.5 border border-slate-300 focus:border-red-300 focus:outline-none rounded-lg"
               />
             </div>
 
@@ -398,7 +412,7 @@ export const HelpdeskView: React.FC = () => {
               <div>
                 <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 cursor-pointer text-slate-600">
                   <Upload className="w-3.5 h-3.5 text-teal-700" />
-                  <span>{photoName || 'Attach Photo Evidence (Optional)'}</span>
+                  <span>{photoName || 'Attach Photo Evidence'} <span className="text-slate-400 font-normal">(Optional)</span></span>
                   <input
                     type="file"
                     accept="image/*"

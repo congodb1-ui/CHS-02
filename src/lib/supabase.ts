@@ -109,7 +109,7 @@ export function mapRecordToVehicleRow(rec: VehicleRecord): SupabaseVehicleRow {
     rfid_tag_id: rec.rfidTagId,
     parking_sticker_no: rec.parkingStickerNo,
     parking_slot_no: rec.parkingSlotNo,
-    is_ev: rec.isEv,
+    is_ev: rec.isEv ?? false,
     registered_date: rec.registeredDate,
   };
 }

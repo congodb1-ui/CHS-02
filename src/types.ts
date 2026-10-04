@@ -323,7 +323,7 @@ export interface VehicleRecord {
   flat_no?: string;
   ownerName: string;
   owner_name?: string;
-  vehicleType: '4-Wheeler' | '2-Wheeler' | 'EV (4-Wheeler)' | 'EV (2-Wheeler)';
+  vehicleType: '4-Wheeler' | '2-Wheeler' | string;
   vehicle_type?: string;
   makeModel: string;
   make_model?: string;
@@ -335,7 +335,7 @@ export interface VehicleRecord {
   parking_sticker_no?: string;
   parkingSlotNo: string;
   parking_slot_no?: string;
-  isEv: boolean;
+  isEv?: boolean;
   is_ev?: boolean;
   registeredDate: string;
   registered_date?: string;
@@ -391,7 +391,7 @@ export interface ApprovalAuditEntry {
   userId: string;
   userName: string;
   flatNo: string;
-  action: 'Approved' | 'Rejected' | 'Role Changed' | 'Registration Requested';
+  action: 'Approved' | 'Rejected' | 'Role Changed' | 'Registration Requested' | 'Profile Modified';
   performedBy: string;
   performedByRole: string;
   timestamp: string;
@@ -428,6 +428,9 @@ export interface Vendor {
   complianceDocUrl?: string;
   rating: number;
   registeredDate?: string;
+  contractStatus?: 'Active' | 'Under Review' | 'Blacklisted' | 'Inactive';
+  rateCards?: string;
+  notes?: string;
 }
 
 export interface QuoteLineItem {
@@ -460,6 +463,8 @@ export interface VendorQuote {
   pdfFileName?: string;
   status: 'Pending Review' | 'Selected' | 'Rejected';
   committeeNotes?: string;
+  termsAndConditions?: string[];
+  attachedTerms?: string;
 }
 
 export type PaymentStage = 'Advance' | 'Milestone 1' | 'Milestone 2' | 'Final Settlement';
@@ -517,6 +522,9 @@ export interface WorkOrder {
   releasedBy: string;
   releasedAt: string;
   payments: WorkOrderPayment[];
+  termsAndConditions?: string[];
+  warrantyMonths?: number;
+  penaltyClause?: string;
 }
 
 export interface PollOption {
@@ -530,7 +538,7 @@ export interface CommunityPoll {
   id: string;
   title: string;
   description: string;
-  category: 'Infrastructure & EV' | 'Amenities & Energy' | 'Society Rules & Security' | 'Finance & Common Dues' | 'Green Living';
+  category: 'Infrastructure & Utilities' | 'Amenities & Energy' | 'Society Rules & Security' | 'Finance & Common Dues' | 'Green Living';
   options: PollOption[];
   totalVotes: number;
   quorumTarget: number; // e.g. 60 flats required for resolution (50% of 120 flats)
@@ -546,6 +554,7 @@ export interface CommunityPoll {
 export interface SocietyProfileDetails {
   name: string;
   societyRegNo: string;
+  reraRegNo?: string;
   act: string;
   addressLine: string;
   landmark: string;
@@ -556,6 +565,10 @@ export interface SocietyProfileDetails {
   fullAddress: string;
   totalUnits: number;
   activeTowers: string[];
+  totalFloors?: number;
+  landArea?: string;
+  logoUrl?: string;
+  supportHelplinePhone?: string;
   securityGatePhone: string;
   estateOfficePhone: string;
   officialEmail: string;
@@ -564,5 +577,25 @@ export interface SocietyProfileDetails {
   bankAccountNo: string;
   bankIFSC: string;
   maintenancePerSqFt: number;
+  workOrderDefaults?: {
+    defaultTerms: string[];
+    defaultGstPercent: number;
+    approvalThresholdAmount: number;
+  };
+  registrationRules?: {
+    enforceOneMemberPerFlat: boolean;
+    autoApproveOwners: boolean;
+    defaultTowers: string[];
+  };
+  slaSettings?: {
+    ticketStatuses: string[];
+    priorityLevels: string[];
+    defaultTechnicianRole: string;
+  };
+  announcementBanner?: {
+    enabled: boolean;
+    message: string;
+    type: 'info' | 'warning' | 'alert';
+  };
 }
 

@@ -373,9 +373,9 @@ export const TenantsView: React.FC = () => {
                 <span className="text-[11px] text-slate-500">Automatic FastTag recognition</span>
               </div>
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">EV Charging Pods</span>
-                <span className="text-lg font-bold text-slate-900 tabular-nums">12 Rapid Chargers</span>
-                <span className="text-[11px] text-teal-700 font-medium">Basement 1 Green Bay</span>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Allocated Demarcated Slots</span>
+                <span className="text-lg font-bold text-slate-900 tabular-nums">200 Resident Bays</span>
+                <span className="text-[11px] text-teal-700 font-medium">Stilt & 2-tier Basement</span>
               </div>
             </div>
 
@@ -433,37 +433,42 @@ export const TenantsView: React.FC = () => {
             ) : (
               <form onSubmit={handleRfidSubmit} className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Flat / Unit Number</label>
+                  <label className="block text-slate-700 font-medium mb-1">
+                    Flat / Unit Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. A-402"
                     value={rfidFlat}
                     onChange={(e) => setRfidFlat(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg"
+                    className="w-full p-2 border border-slate-300 rounded-lg focus:border-red-300 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Vehicle License Plate No.</label>
+                  <label className="block text-slate-700 font-medium mb-1">
+                    Vehicle License Plate No. <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. MH 12 AB 1234"
                     value={rfidVehicleNum}
                     onChange={(e) => setRfidVehicleNum(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg font-mono uppercase"
+                    className="w-full p-2 border border-slate-300 rounded-lg font-mono uppercase focus:border-red-300 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Vehicle Type</label>
+                  <label className="block text-slate-700 font-medium mb-1">
+                    Vehicle Type <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={rfidVehicleType}
                     onChange={(e) => setRfidVehicleType(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-lg bg-white"
+                    className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:border-red-300 focus:outline-none"
                   >
                     <option value="4 Wheeler (Car)">4 Wheeler (Car / SUV)</option>
                     <option value="2 Wheeler (Bike)">2 Wheeler (Motorcycle / Scooter)</option>
-                    <option value="EV 4 Wheeler">Electric Vehicle (EV) 4 Wheeler</option>
                   </select>
                 </div>
                 <div className="pt-2 flex justify-end gap-2">

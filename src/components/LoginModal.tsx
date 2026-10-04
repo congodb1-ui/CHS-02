@@ -479,7 +479,9 @@ export const LoginModal: React.FC = () => {
               {/* Tower & Flat Selector */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Select Tower</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Select Tower <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={regTower}
                     onChange={(e) => {
@@ -487,7 +489,7 @@ export const LoginModal: React.FC = () => {
                       setRegTower(tower);
                       setRegFlat(tower === 'Tower A' ? 'A-103' : 'B-103');
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-teal-700 focus:bg-white text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-red-300 focus:outline-none text-xs"
                   >
                     <option value="Tower A">Tower A (Maple)</option>
                     <option value="Tower B">Tower B (Cedar)</option>
@@ -495,11 +497,13 @@ export const LoginModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Predefined Flat Number</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Predefined Flat Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={regFlat}
                     onChange={(e) => setRegFlat(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 focus:bg-white text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:border-red-300 focus:outline-none text-xs"
                   >
                     {availableFlatsForTower.map((flat) => {
                       const occupied = isFlatOccupied(flat);
@@ -516,7 +520,9 @@ export const LoginModal: React.FC = () => {
               {/* Resident Full Name & Ownership */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Full Resident Name</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Full Resident Name <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <div className="relative">
                     <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                     <input
@@ -525,17 +531,19 @@ export const LoginModal: React.FC = () => {
                       placeholder="e.g. Anand Kulkarni"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Occupancy / Ownership</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Occupancy / Ownership <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <select
                     value={regOwnership}
                     onChange={(e) => setRegOwnership(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-teal-700 focus:bg-white text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-red-300 focus:outline-none text-xs"
                   >
                     <option value="Owner">Flat Owner</option>
                     <option value="Tenant">Registered Tenant</option>
@@ -546,7 +554,9 @@ export const LoginModal: React.FC = () => {
               {/* Email & Phone */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Email Address</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Email Address <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <div className="relative">
                     <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                     <input
@@ -555,13 +565,15 @@ export const LoginModal: React.FC = () => {
                       placeholder="resident@example.com"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="font-semibold text-slate-800 block mb-1">Mobile Phone Number</label>
+                  <label className="font-semibold text-slate-800 block mb-1">
+                    Mobile Phone Number <span className="text-red-500 font-bold">*</span>
+                  </label>
                   <div className="relative">
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                     <input
@@ -570,7 +582,7 @@ export const LoginModal: React.FC = () => {
                       placeholder="+91 98220 00000"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
                     />
                   </div>
                 </div>
@@ -578,7 +590,9 @@ export const LoginModal: React.FC = () => {
 
               {/* Password */}
               <div>
-                <label className="font-semibold text-slate-800 block mb-1">Create Account Password</label>
+                <label className="font-semibold text-slate-800 block mb-1">
+                  Create Account Password <span className="text-red-500 font-bold">*</span>
+                </label>
                 <div className="relative">
                   <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                   <input
@@ -588,7 +602,7 @@ export const LoginModal: React.FC = () => {
                     placeholder="Minimum 6 characters"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                    className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:border-red-300 focus:outline-none text-xs font-medium"
                   />
                   <button
                     type="button"

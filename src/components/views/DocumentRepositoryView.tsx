@@ -109,7 +109,7 @@ export const DocumentRepositoryView: React.FC = () => {
           `Uploaded On: ${doc.uploadedAt}\n` +
           `Uploaded By: ${doc.uploadedBy}\n\n` +
           `Summary:\n${doc.description || 'Verified society official record under MCS Act 1960.'}\n\n` +
-          `[Digital Society Seal - Kool Homes Solitaire CHS Ltd. Baner, Pune]`,
+          `[Digital Society Seal - Kool Homes Solitaire CHS Ltd. Kausar Baugh, Kondhwa, Pune - 411048 (NIBM)]`,
       ],
       { type: 'text/plain' }
     );

@@ -25,7 +25,6 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { PublicLandingView } from './PublicLandingView';
-import { LoginModal } from '../LoginModal';
 import { CommunityPollsSection } from '../polls/CommunityPollsSection';
 import heroImage from '../../assets/images/hero_solitaire_society_1790929946633.jpg';
 
@@ -33,6 +32,7 @@ export const HomeView: React.FC = () => {
   const {
     setActiveTab,
     setIsBookingModalOpen,
+    setIsBookingModalOpen: _setBooking,
     setTargetAmenity,
     notices,
     openAiWithPrompt,
@@ -40,31 +40,16 @@ export const HomeView: React.FC = () => {
     isAuthenticated,
     isPendingApproval,
     userFlat,
+    openLoginModal,
   } = useSociety();
-
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [modalTab, setModalTab] = useState<'login' | 'register'>('login');
 
   // If unauthenticated visitor, display Public Landing Page
   if (!isAuthenticated) {
     return (
-      <>
-        <PublicLandingView
-          onOpenLogin={() => {
-            setModalTab('login');
-            setIsLoginModalOpen(true);
-          }}
-          onOpenRegister={() => {
-            setModalTab('register');
-            setIsLoginModalOpen(true);
-          }}
-        />
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          defaultTab={modalTab}
-        />
-      </>
+      <PublicLandingView
+        onOpenLogin={() => openLoginModal('login')}
+        onOpenRegister={() => openLoginModal('register')}
+      />
     );
   }
 

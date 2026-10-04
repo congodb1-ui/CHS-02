@@ -22,6 +22,7 @@ import {
   SocietyDocument,
   ApprovalAuditEntry,
   CommunityPoll,
+  SocietyProfileDetails,
 } from '../types';
 
 export const MASTER_STAFF_DIRECTORY: StaffMember[] = [
@@ -823,7 +824,136 @@ export const COMMITTEE_MEMBERS = [
   },
 ];
 
-export const INITIAL_PROFILES: MemberProfile[] = [
+export const DEFAULT_SOCIETY_PROFILE: SocietyProfileDetails = {
+  name: 'Kool Homes Solitaire CHS',
+  societyRegNo: 'PNA/HSG/TC/12492/2018',
+  act: 'Maharashtra Co-operative Societies Act, 1960',
+  addressLine: 'Kool Homes Solitaire, Kausar Baugh, Kondhwa',
+  landmark: 'KAUSAR BAUGH, NIBM',
+  subLocality: 'Kausar Baugh, NIBM',
+  city: 'Pune',
+  state: 'Maharashtra',
+  pincode: '411048',
+  fullAddress: 'Kool Homes Solitaire, Kausar Baugh, Kondhwa, Pune, Maharashtra 411048 (KAUSAR BAUGH, NIBM)',
+  totalUnits: 200,
+  activeTowers: ['Tower A', 'Tower B', 'Tower C (Upcoming)'],
+  securityGatePhone: '+91 98220 54101',
+  estateOfficePhone: '+91 98901 33412',
+  officialEmail: 'secretary@solitaire-chs.org',
+  agmDateNotice: 'Oct 04, 2026 at 10:00 AM',
+  bankName: 'HDFC Bank, NIBM Road Branch, Pune',
+  bankAccountNo: '50200034891244',
+  bankIFSC: 'HDFC0001824',
+  maintenancePerSqFt: 3.85,
+};
+
+export interface LocalCredential {
+  role: 'admin' | 'supervisor' | 'mc_member' | 'resident';
+  roleBadge: string;
+  name: string;
+  designation: string;
+  email: string;
+  flatNo: string;
+  tower: string;
+  password: string;
+  acceptedPasswords: string[];
+  description: string;
+}
+
+export const LOCAL_LOGIN_CREDENTIALS: LocalCredential[] = [
+  {
+    role: 'admin',
+    roleBadge: 'Estate Admin',
+    name: 'Sanjeev Mathur',
+    designation: 'Estate Administrator',
+    email: 'admin@solitaire-chs.org',
+    flatNo: 'A-1202',
+    tower: 'Tower A',
+    password: 'Solitaire@2026',
+    acceptedPasswords: ['Solitaire@2026', 'admin123', 'admin@2026', 'admin'],
+    description: 'Full administrative authority to modify society master profile, address, rules, flats, residents, and vendor records.',
+  },
+  {
+    role: 'supervisor',
+    roleBadge: 'Facility Supervisor',
+    name: 'Facility Supervisor (Operations)',
+    designation: 'Facility Supervisor',
+    email: 'supervisor@solitaire-chs.org',
+    flatNo: 'A-101',
+    tower: 'Tower A',
+    password: 'Solitaire@2026',
+    acceptedPasswords: ['Solitaire@2026', 'supervisor123', 'supervisor@2026', 'supervisor'],
+    description: 'Operational supervisor authority: daily inspections, utility meters, security attendance, and field tickets.',
+  },
+  {
+    role: 'mc_member',
+    roleBadge: 'MC Secretary',
+    name: 'Pooja Hegde-Patil',
+    designation: 'Managing Committee Secretary',
+    email: 'secretary@solitaire-chs.org',
+    flatNo: 'B-801',
+    tower: 'Tower B',
+    password: 'Solitaire@2026',
+    acceptedPasswords: ['Solitaire@2026', 'secretary123', 'secretary@2026', 'secretary'],
+    description: 'Managing Committee Secretary: approval workflows, vendor assignments, governance meetings, and notices.',
+  },
+  {
+    role: 'resident',
+    roleBadge: 'Resident Member',
+    name: 'Rajesh Sharma',
+    designation: 'Resident Member (Owner)',
+    email: 'rajesh.sharma@solitaire-chs.org',
+    flatNo: 'A-402',
+    tower: 'Tower A',
+    password: 'Solitaire@2026',
+    acceptedPasswords: ['Solitaire@2026', 'resident123', 'resident'],
+    description: 'Resident access: service tickets, amenity reservations, vehicle permits, and community voting.',
+  },
+];
+
+export const OFFICIAL_LOCAL_USERS: MemberProfile[] = [
+  {
+    id: 'usr-003',
+    memberId: 'SOL-ADM-01',
+    name: 'Sanjeev Mathur (Admin)',
+    email: 'admin@solitaire-chs.org',
+    tower: 'Tower A',
+    flatNo: 'A-1202',
+    role: 'admin',
+    ownershipType: 'Owner',
+    phone: '+91 98901 33412',
+    isApproved: true,
+    status: 'Approved',
+    registeredDate: '2023-11-01',
+  },
+  {
+    id: 'usr-002',
+    memberId: 'SOL-B-801',
+    name: 'Pooja Hegde-Patil (Secretary)',
+    email: 'secretary@solitaire-chs.org',
+    tower: 'Tower B',
+    flatNo: 'B-801',
+    role: 'mc_member',
+    ownershipType: 'Owner',
+    phone: '+91 98900 12890',
+    isApproved: true,
+    status: 'Approved',
+    registeredDate: '2024-01-10',
+  },
+  {
+    id: 'usr-004',
+    memberId: 'SOL-SUP-01',
+    name: 'Facility Supervisor (Operations)',
+    email: 'supervisor@solitaire-chs.org',
+    tower: 'Tower A',
+    flatNo: 'A-101',
+    role: 'supervisor',
+    ownershipType: 'Owner',
+    phone: '+91 98220 54101',
+    isApproved: true,
+    status: 'Approved',
+    registeredDate: '2023-11-01',
+  },
   {
     id: 'usr-001',
     memberId: 'SOL-A-402',
@@ -838,48 +968,10 @@ export const INITIAL_PROFILES: MemberProfile[] = [
     status: 'Approved',
     registeredDate: '2024-02-15',
   },
-  {
-    id: 'usr-002',
-    memberId: 'SOL-B-801',
-    name: 'Managing Committee Secretary',
-    email: 'secretary@solitaire-chs.org',
-    tower: 'Tower B',
-    flatNo: 'B-801',
-    role: 'mc_member',
-    ownershipType: 'Owner',
-    phone: '+91 98900 12890',
-    isApproved: true,
-    status: 'Approved',
-    registeredDate: '2024-01-10',
-  },
-  {
-    id: 'usr-003',
-    memberId: 'SOL-ADM-01',
-    name: 'Estate Administrator',
-    email: 'admin@solitaire-chs.org',
-    tower: 'Tower A',
-    flatNo: 'A-1202',
-    role: 'admin',
-    ownershipType: 'Owner',
-    phone: '+91 98901 33412',
-    isApproved: true,
-    status: 'Approved',
-    registeredDate: '2023-11-01',
-  },
-  {
-    id: 'usr-004',
-    memberId: 'SOL-SUP-01',
-    name: 'Facility Supervisor',
-    email: 'supervisor@solitaire-chs.org',
-    tower: 'Tower A',
-    flatNo: 'A-101',
-    role: 'supervisor',
-    ownershipType: 'Owner',
-    phone: '+91 98220 54101',
-    isApproved: true,
-    status: 'Approved',
-    registeredDate: '2023-11-01',
-  },
+];
+
+export const INITIAL_PROFILES: MemberProfile[] = [
+  ...OFFICIAL_LOCAL_USERS,
   {
     id: 'usr-005',
     memberId: 'SOL-A-301',
@@ -976,10 +1068,10 @@ export const INITIAL_VENDORS: Vendor[] = [
     email: 'projects@cleanaqua.co.in',
     gstNumber: '27AABCC8921M1Z5',
     panNumber: 'AABCC8921M',
-    bankName: 'HDFC Bank, Baner Branch',
+    bankName: 'HDFC Bank, Kondhwa - NIBM Branch',
     bankAccountNumber: '50200034819201',
     ifscCode: 'HDFC0000241',
-    registeredAddress: 'Plot 42, S.No. 68, Pancard Club Road, Baner, Pune - 411045',
+    registeredAddress: 'Commercial Complex, Kausar Baugh, Kondhwa, Pune - 411048',
     complianceDocUrl: 'https://docs.cleanaqua.co.in/gst-cert.pdf',
     rating: 4.8,
     registeredDate: '2023-08-10',
@@ -1166,7 +1258,7 @@ export const INITIAL_WORK_ORDERS: WorkOrder[] = [
     vendorGst: '27AABCC8921M1Z5',
     vendorPan: 'AABCC8921M',
     bankDetails: {
-      bankName: 'HDFC Bank, Baner Branch',
+      bankName: 'HDFC Bank, Kondhwa - NIBM Branch',
       accountNumber: '50200034819201',
       ifscCode: 'HDFC0000241',
     },

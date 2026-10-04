@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSociety } from '../context/SocietyContext';
 import {
   X,
@@ -7,93 +7,123 @@ import {
   KeyRound,
   CheckCircle2,
   Lock,
-  UserCheck,
   AlertTriangle,
-  User,
-  Users,
-  Wrench,
-  Sparkles,
   ArrowRight,
   Mail,
   Eye,
   EyeOff,
   Loader2,
-  Database,
+  Building2,
+  User,
+  Phone,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
-import { UserRole, ALL_SOCIETY_FLATS } from '../types';
+import { ALL_SOCIETY_FLATS } from '../types';
 
-interface LoginModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  defaultTab?: 'login' | 'register';
-}
-
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, defaultTab = 'login' }) => {
+export const LoginModal: React.FC = () => {
   const {
-    loginAsRole,
-    registerMember,
+    isLoginModalOpen,
+    closeLoginModal,
+    loginModalTab,
+    setLoginModalTab,
     signInWithSupabase,
     signUpWithSupabase,
     setActiveTab,
     isSupabaseOnline,
+    profiles,
   } = useSociety();
 
-  const [activeTab, setActiveTabMode] = useState<'login' | 'register'>(defaultTab);
+  // Active form tab
+  const [activeTab, setActiveTabMode] = useState<'login' | 'register'>('login');
 
-  // Supabase Login Form State
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  // Sign In Form State
+  const [loginIdentifier, setLoginIdentifier] = useState('secretary@solitaire-chs.org');
+  const [loginPassword, setLoginPassword] = useState('Solitaire@2026');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Supabase Registration Form State
+  // Registration Form State
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [regPhone, setRegPhone] = useState('');
   const [regTower, setRegTower] = useState<'Tower A' | 'Tower B'>('Tower A');
-  const [regFlat, setRegFlat] = useState(ALL_SOCIETY_FLATS[0]);
+  const [regFlat, setRegFlat] = useState('A-103');
   const [regOwnership, setRegOwnership] = useState<'Owner' | 'Tenant'>('Owner');
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState('');
   const [regSuccess, setRegSuccess] = useState('');
 
-  if (!isOpen) return null;
+  // Sync with context prop when opened
+  useEffect(() => {
+    if (loginModalTab) {
+      setActiveTabMode(loginModalTab);
+    }
+    setLoginError('');
+    setRegError('');
+    setRegSuccess('');
+  }, [loginModalTab, isLoginModalOpen]);
 
-  // Filter predefined flats by selected tower
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLoginModalOpen) {
+        closeLoginModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLoginModalOpen, closeLoginModal]);
+
+  if (!isLoginModalOpen) return null;
+
+  // Predefined flats strictly filtered by selected tower
   const availableFlatsForTower = ALL_SOCIETY_FLATS.filter((f) =>
     regTower === 'Tower A' ? f.startsWith('A-') : f.startsWith('B-')
   );
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Check if flat is already occupied in society registry
+  const isFlatOccupied = (flatNo: string) => {
+    return profiles.some(
+      (p) => p.flatNo.toUpperCase() === flatNo.toUpperCase() && p.status !== 'Rejected'
+    );
+  };
+
+  const handleLoginSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
 
     try {
-      const res = await signInWithSupabase(loginEmail.trim(), loginPassword);
+      const res = await signInWithSupabase(loginIdentifier.trim(), loginPassword);
 
       if (!res.success) {
-        setLoginError(res.error || 'Authentication failed. Please verify your credentials.');
+        setLoginError(res.error || 'Invalid credentials. Please verify your registered email or flat number.');
       } else {
         if (res.isPending) {
           setActiveTab('home');
-        } else if (res.role === 'admin' || res.role === 'mc_member') {
-          setActiveTab('committee');
-        } else if (res.role === 'supervisor') {
-          setActiveTab('inspection');
+        } else if (res.role === 'admin' || res.role === 'mc_member' || res.role === 'secretary') {
+          setActiveTab('registry');
         } else {
           setActiveTab('home');
         }
-        onClose();
+        closeLoginModal();
       }
     } catch (err: any) {
-      setLoginError(err.message || 'An error occurred during authentication.');
+      setLoginError(err.message || 'An unexpected error occurred during authentication.');
     } finally {
       setLoginLoading(false);
     }
+  };
+
+  const handleQuickFill = (identifier: string, pwd = 'Solitaire@2026') => {
+    setLoginIdentifier(identifier);
+    setLoginPassword(pwd);
+    setLoginError('');
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -102,7 +132,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, default
     setRegSuccess('');
 
     if (regPassword.length < 6) {
-      setRegError('Password must be at least 6 characters in length for secure authentication.');
+      setRegError('Password must be at least 6 characters in length.');
       return;
     }
 
@@ -131,444 +161,479 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, default
         setRegPhone('');
       }
     } catch (err: any) {
-      setRegError(err.message || 'Registration failed.');
+      setRegError(err.message || 'Registration failed. Please try again.');
     } finally {
       setRegLoading(false);
     }
   };
 
-  const handleRoleSelect = (selectedRole: UserRole, targetTab: string, profileId?: string) => {
-    loginAsRole(selectedRole, profileId);
-    setActiveTab(targetTab);
-    onClose();
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="bg-slate-900 px-6 py-5 flex items-center justify-between text-white">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) closeLoginModal();
+      }}
+    >
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col my-auto transition-all animate-in fade-in zoom-in-95 duration-200">
+        {/* Executive Modal Header */}
+        <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white shrink-0 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-teal-600 rounded-xl shadow-xs">
-              <KeyRound className="w-5 h-5 text-white" />
+            <div className="p-2.5 bg-teal-600 rounded-xl shadow-sm text-white">
+              <KeyRound className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">Solitaire CHS · Access & Authentication</h2>
-                {isSupabaseOnline && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50">
-                    <Database className="w-2.5 h-2.5" />
-                    Supabase Connected
-                  </span>
-                )}
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">
+                  Solitaire CHS Portal
+                </h2>
               </div>
-              <p className="text-xs text-slate-300">
-                Single Member Per Flat Security · Supabase Auth & PostgreSQL Realtime
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[11px] text-emerald-300 font-medium">
+                  {isSupabaseOnline ? 'Supabase Authentication Active' : 'Authorized Production Access'}
+                </span>
+                <span className="text-slate-500 text-[10px]">· SSL 256-bit</span>
+              </div>
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+            onClick={closeLoginModal}
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label="Close authentication modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 bg-slate-50 px-6">
+        {/* Executive Tab Switcher */}
+        <div className="flex border-b border-slate-200 bg-slate-50 shrink-0">
           <button
+            type="button"
             onClick={() => {
               setActiveTabMode('login');
+              setLoginModalTab('login');
               setLoginError('');
               setRegError('');
               setRegSuccess('');
             }}
-            className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors ${
+            className={`flex-1 py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-all text-center flex items-center justify-center gap-1.5 ${
               activeTab === 'login'
-                ? 'border-teal-700 text-teal-800 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? 'border-teal-700 text-teal-900 bg-white shadow-2xs'
+                : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            Authorized Portal Login
+            <ShieldCheck className={`w-3.5 h-3.5 ${activeTab === 'login' ? 'text-teal-700' : 'text-slate-400'}`} />
+            <span>Authorized Portal Login</span>
           </button>
           <button
+            type="button"
             onClick={() => {
               setActiveTabMode('register');
+              setLoginModalTab('register');
               setLoginError('');
               setRegError('');
               setRegSuccess('');
             }}
-            className={`py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-colors ${
+            className={`flex-1 py-3 px-4 text-xs font-bold border-b-2 cursor-pointer transition-all text-center flex items-center justify-center gap-1.5 ${
               activeTab === 'register'
-                ? 'border-teal-700 text-teal-800 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
+                ? 'border-teal-700 text-teal-900 bg-white shadow-2xs'
+                : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            New Flat Resident Registration
+            <Building2 className={`w-3.5 h-3.5 ${activeTab === 'register' ? 'text-teal-700' : 'text-slate-400'}`} />
+            <span>New Flat Registration</span>
           </button>
         </div>
 
-        {/* TAB 1: SUPABASE AUTH LOGIN + DEMO ROLE SWITCHER */}
-        {activeTab === 'login' && (
-          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto text-xs">
-            {/* Supabase Email/Password Sign-In Form */}
-            <form onSubmit={handleLoginSubmit} className="space-y-3.5 bg-slate-50 p-4.5 rounded-xl border border-slate-200">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                  <Lock className="w-4 h-4 text-teal-700" />
-                  Sign In to Your Society Account
+        {/* Scrollable Form Content Body */}
+        <div className="overflow-y-auto max-h-[calc(88vh-130px)] p-6 text-xs">
+          {/* TAB 1: AUTHORIZED PORTAL LOGIN */}
+          {activeTab === 'login' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-slate-600 pb-1">
+                <span className="font-medium text-slate-600">
+                  Enter your registered official email, flat number (e.g. B-801, A-402), or member ID.
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">Supabase Auth</span>
               </div>
 
               {loginError && (
-                <div className="p-2.5 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-2 font-medium">
+                <div className="p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-start gap-2.5 font-medium animate-in fade-in duration-150">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                  <span>{loginError}</span>
+                  <div>
+                    <p className="font-semibold text-red-800">{loginError}</p>
+                    <p className="text-[11px] text-red-600 mt-0.5">
+                      Hint: You can select an authorized portfolio below to auto-populate credentials.
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 block">Registered Email Address</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. suresh@example.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 text-xs"
-                  />
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                {/* Identifier Input */}
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-800 block text-xs">
+                    Registered Email Address / Flat Number / Member ID
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. secretary@solitaire-chs.org or B-801"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 block">Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type={showLoginPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Enter account password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full pl-9 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 text-xs"
-                  />
+                {/* Password Input */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="font-semibold text-slate-800 block text-xs">Account Password</label>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Enter account password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2 bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-teal-700 focus:border-teal-700 text-xs font-medium transition-colors shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Keep signed in */}
+                <div className="flex items-center justify-between pt-0.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="rounded border-slate-300 text-teal-700 focus:ring-teal-700 w-3.5 h-3.5"
+                    />
+                    <span>Remember session on this device</span>
+                  </label>
+                  <span className="text-[11px] text-teal-700 font-medium hover:underline cursor-pointer">
+                    Security Assistance
+                  </span>
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-1.5">
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-400 text-white rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all text-xs"
+                  >
+                    {loginLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying Credentials...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In to Portal</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Authorized Portfolios Quick Select */}
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Authorized Society Accounts
+                  </span>
+                  <span className="text-[10px] text-slate-400">Click to load portfolio credentials</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowLoginPassword(!showLoginPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    onClick={() => handleQuickFill('secretary@solitaire-chs.org')}
+                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
                   >
-                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
+                        MC Secretary
+                      </span>
+                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
+                        B-801
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Pooja Hegde-Patil</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFill('admin@solitaire-chs.org')}
+                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
+                        Estate Administrator
+                      </span>
+                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
+                        A-1202
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Sanjeev Mathur</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFill('rajesh.sharma@solitaire-chs.org')}
+                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
+                        Resident Member
+                      </span>
+                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
+                        A-402
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Rajesh Sharma (Owner)</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFill('supervisor@solitaire-chs.org')}
+                    className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-teal-400 bg-slate-50/70 hover:bg-teal-50/40 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs group-hover:text-teal-800">
+                        Facility Supervisor
+                      </span>
+                      <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">
+                        A-101
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">Estate Operations</p>
                   </button>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-400 text-white rounded-lg font-bold flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-              >
-                {loginLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verifying Credentials...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Authenticate via Supabase</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {/* Confidentiality Footer Notice */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-slate-500 text-[11px] leading-relaxed flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                <span>
+                  Portal access is restricted to verified residents of Kool Homes Solitaire CHS. If you haven't registered your flat yet, switch to the <strong>New Flat Registration</strong> tab above.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: NEW FLAT RESIDENT REGISTRATION */}
+          {activeTab === 'register' && (
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-950 flex items-start gap-2.5 leading-relaxed">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-semibold">Strict Single-Primary-Member Policy:</strong>
+                  <span>Solitaire CHS bylaws permit exactly 1 verified primary account per flat. If your flat is already claimed, the request will be flagged.</span>
+                </div>
+              </div>
+
+              {regError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-start gap-2.5 font-medium animate-in fade-in duration-150">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                  <span>{regError}</span>
+                </div>
+              )}
+
+              {regSuccess && (
+                <div className="p-3.5 bg-emerald-50 text-emerald-900 rounded-xl border border-emerald-200 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-start gap-2 font-medium">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+                    <span>{regSuccess}</span>
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTabMode('login');
+                        setLoginModalTab('login');
+                      }}
+                      className="px-3 py-1.5 bg-emerald-700 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-800 transition-colors cursor-pointer"
+                    >
+                      Proceed to Portal Login &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tower & Flat Selector */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Select Tower</label>
+                  <select
+                    value={regTower}
+                    onChange={(e) => {
+                      const tower = e.target.value as 'Tower A' | 'Tower B';
+                      setRegTower(tower);
+                      setRegFlat(tower === 'Tower A' ? 'A-103' : 'B-103');
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-teal-700 focus:bg-white text-xs"
+                  >
+                    <option value="Tower A">Tower A (Maple)</option>
+                    <option value="Tower B">Tower B (Cedar)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Predefined Flat Number</label>
+                  <select
+                    value={regFlat}
+                    onChange={(e) => setRegFlat(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 focus:bg-white text-xs"
+                  >
+                    {availableFlatsForTower.map((flat) => {
+                      const occupied = isFlatOccupied(flat);
+                      return (
+                        <option key={flat} value={flat} disabled={occupied}>
+                          {flat} {occupied ? '(Registered)' : '(Available)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              {/* Resident Full Name & Ownership */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Full Resident Name</label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Anand Kulkarni"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Occupancy / Ownership</label>
+                  <select
+                    value={regOwnership}
+                    onChange={(e) => setRegOwnership(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-teal-700 focus:bg-white text-xs"
+                  >
+                    <option value="Owner">Flat Owner</option>
+                    <option value="Tenant">Registered Tenant</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Email & Phone */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="resident@example.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-800 block mb-1">Mobile Phone Number</label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+91 98220 00000"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="font-semibold text-slate-800 block mb-1">Create Account Password</label>
+                <div className="relative">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  <input
+                    type={showRegPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="Minimum 6 characters"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className="w-full pl-8 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-teal-700 focus:bg-white text-xs font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-500">
+                  Awaiting MC verification before full module access.
+                </span>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={closeLoginModal}
+                    className="px-3.5 py-2 border border-slate-300 text-slate-700 rounded-xl font-medium cursor-pointer hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={regLoading}
+                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-400 text-white rounded-xl font-bold cursor-pointer shadow-sm flex items-center gap-2 transition-all"
+                  >
+                    {regLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Submitting Unit...</span>
+                      </>
+                    ) : (
+                      <span>Register Residential Unit</span>
+                    )}
+                  </button>
+                </div>
+              </div>
             </form>
-
-            {/* Quick Demo Switcher Section */}
-            <div className="relative flex py-1 items-center">
-              <div className="grow border-t border-slate-200"></div>
-              <span className="shrink mx-4 text-slate-400 text-[11px] font-semibold uppercase tracking-wider">
-                Or Quick-Switch Role for Demo / Inspection
-              </span>
-              <div className="grow border-t border-slate-200"></div>
-            </div>
-
-            <div className="space-y-3">
-              {/* Resident Role */}
-              <div className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      Resident
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-xs">Resident Member (Verified Unit A-402)</h3>
-                  </div>
-                  <p className="text-slate-600 text-[11px]">
-                    Book amenities, log service tickets, view FastTag parking, and vote on community polls.
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRoleSelect('resident', 'home', 'usr-001')}
-                  className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
-                >
-                  Continue as Resident
-                </button>
-              </div>
-
-              {/* Pending Resident Demo */}
-              <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/40 hover:border-amber-400 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">
-                      Pending Verification
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-xs">New Signup (Unit B-503 - Pending)</h3>
-                  </div>
-                  <p className="text-slate-600 text-[11px]">
-                    Experience the restricted Pending Approval state. Shows instructions to wait for MC/Admin approval.
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRoleSelect('resident', 'home', 'usr-010')}
-                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
-                >
-                  Test Pending User
-                </button>
-              </div>
-
-              {/* Supervisor Role */}
-              <div className="p-3.5 rounded-xl border border-slate-200 hover:border-teal-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800">
-                      Supervisor
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-xs">Facility Supervisor (Estate Operations)</h3>
-                  </div>
-                  <p className="text-slate-600 text-[11px]">
-                    Submit 33-point physical walkthrough inspections, mark staff attendance, and log defect tickets.
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRoleSelect('supervisor', 'inspection', 'usr-004')}
-                  className="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
-                >
-                  Continue as Supervisor
-                </button>
-              </div>
-
-              {/* MC Member Role */}
-              <div className="p-3.5 rounded-xl border border-slate-200 hover:border-sky-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">
-                      MC Member
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-xs">Managing Committee (Secretary / Treasurer)</h3>
-                  </div>
-                  <p className="text-slate-600 text-[11px]">
-                    Approve member registrations, sign off work orders with comments, and review financial balance sheets.
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRoleSelect('mc_member', 'procurement', 'usr-002')}
-                  className="px-3.5 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg font-semibold shrink-0 cursor-pointer shadow-xs text-xs"
-                >
-                  Continue as MC Member
-                </button>
-              </div>
-
-              {/* Admin Role */}
-              <div className="p-3.5 rounded-xl border border-slate-900 bg-slate-900 text-white transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-500 text-slate-950">
-                      Superuser
-                    </span>
-                    <h3 className="font-bold text-white text-xs">Society Admin (Full System Override)</h3>
-                  </div>
-                  <p className="text-slate-300 text-[11px]">
-                    Full master control: inline-edit all database records, grant/revoke roles, and manage all files.
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleRoleSelect('admin', 'committee', 'usr-003')}
-                  className="px-3.5 py-1.5 bg-white text-slate-900 hover:bg-slate-100 rounded-lg font-bold shrink-0 cursor-pointer text-xs"
-                >
-                  Master Admin Access
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: REGISTER FLAT (SINGLE MEMBER PER FLAT CONSTRAINT + SUPABASE AUTH) */}
-        {activeTab === 'register' && (
-          <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4 text-xs">
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <span>
-                <strong>One Member Per Flat Constraint:</strong> Solitaire CHS permits only 1 primary registered account per residential flat. If your flat is already claimed in Supabase, registration will be rejected.
-              </span>
-            </div>
-
-            {regError && (
-              <div className="p-3 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-start gap-2 font-medium">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-                <span>{regError}</span>
-              </div>
-            )}
-
-            {regSuccess && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 flex items-start gap-2 font-medium">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
-                <span>{regSuccess}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Select Tower</label>
-                <select
-                  value={regTower}
-                  onChange={(e) => {
-                    const tower = e.target.value as 'Tower A' | 'Tower B';
-                    setRegTower(tower);
-                    setRegFlat(tower === 'Tower A' ? 'A-101' : 'B-101');
-                  }}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-bold"
-                >
-                  <option value="Tower A">Tower A (Maple)</option>
-                  <option value="Tower B">Tower B (Cedar)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Predefined Flat (101 to 1504)</label>
-                <select
-                  value={regFlat}
-                  onChange={(e) => setRegFlat(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-mono font-bold text-slate-900"
-                >
-                  {availableFlatsForTower.map((flat) => (
-                    <option key={flat} value={flat}>
-                      {flat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Full Resident Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Suresh Nambiar"
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Ownership Type</label>
-                <select
-                  value={regOwnership}
-                  onChange={(e) => setRegOwnership(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-semibold"
-                >
-                  <option value="Owner">Flat Owner</option>
-                  <option value="Tenant">Registered Tenant</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="suresh@example.com"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Mobile Phone Number</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+91 98220 00000"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Create Password (Supabase Auth)</label>
-              <div className="relative">
-                <input
-                  type={showRegPassword ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  placeholder="Minimum 6 characters"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowRegPassword(!showRegPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                This password will be used with Supabase Authentication to protect your flat account.
-              </span>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">
-                New accounts remain locked in "Pending Approval" state until verified by MC.
-              </span>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium cursor-pointer hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={regLoading}
-                  className="px-5 py-2 bg-teal-700 hover:bg-teal-800 disabled:bg-teal-400 text-white rounded-lg font-bold cursor-pointer shadow-xs flex items-center gap-2"
-                >
-                  {regLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Creating Account...</span>
-                    </>
-                  ) : (
-                    <span>Submit Registration</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

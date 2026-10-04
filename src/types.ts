@@ -213,12 +213,13 @@ export interface ComplaintTicket {
   residentType: 'Owner' | 'Tenant';
   phone: string;
   category: 'Plumbing' | 'Electrical' | 'Lift / Elevator' | 'STP & Drainage' | 'Water Supply' | 'Security & Access' | 'Housekeeping' | 'Other';
-  priority: 'Normal' | 'Urgent';
+  priority: 'Low' | 'Normal' | 'Urgent' | 'Critical Emergency';
   description: string;
-  status: 'Open' | 'In Progress' | 'Resolved';
+  status: 'Open' | 'In Progress' | 'Resolved' | 'Closed';
   createdAt: string;
   resolutionNotes?: string;
   assignedVendor?: string;
+  estimatedCost?: number;
 }
 
 export interface TenantApplication {
@@ -379,6 +380,10 @@ export interface MemberProfile {
   reviewed_at?: string;
   reviewRemarks?: string;
   review_remarks?: string;
+  parkingSlot?: string;
+  twoWheelerSlot?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
 }
 
 export interface ApprovalAuditEntry {
@@ -537,3 +542,27 @@ export interface CommunityPoll {
   userVotes?: Record<string, string>; // flatNo -> optionId mapping
   resolutionSummary?: string;
 }
+
+export interface SocietyProfileDetails {
+  name: string;
+  societyRegNo: string;
+  act: string;
+  addressLine: string;
+  landmark: string;
+  subLocality: string;
+  city: string;
+  state: string;
+  pincode: string;
+  fullAddress: string;
+  totalUnits: number;
+  activeTowers: string[];
+  securityGatePhone: string;
+  estateOfficePhone: string;
+  officialEmail: string;
+  agmDateNotice?: string;
+  bankName: string;
+  bankAccountNo: string;
+  bankIFSC: string;
+  maintenancePerSqFt: number;
+}
+

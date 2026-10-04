@@ -984,7 +984,7 @@ export const ProcurementView: React.FC = () => {
                   <label className="font-semibold text-slate-700 block mb-1">Bank Name & Branch</label>
                   <input
                     type="text"
-                    placeholder="HDFC Bank, Baner"
+                    placeholder="HDFC Bank, Kondhwa / NIBM"
                     value={vendorBankName}
                     onChange={(e) => setVendorBankName(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"
@@ -1018,7 +1018,7 @@ export const ProcurementView: React.FC = () => {
                 <label className="font-semibold text-slate-700 block mb-1">Registered Business Address</label>
                 <input
                   type="text"
-                  placeholder="Plot 18, Commercial Plaza, Baner Road, Pune - 411045"
+                  placeholder="Plot 18, Commercial Plaza, Kausar Baugh, Kondhwa, Pune - 411048"
                   value={vendorAddress}
                   onChange={(e) => setVendorAddress(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900"

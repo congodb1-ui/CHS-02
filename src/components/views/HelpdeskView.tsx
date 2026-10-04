@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useSociety } from '../../context/SocietyContext';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import {
   Wrench,
   AlertCircle,
@@ -14,6 +15,10 @@ import {
   Building,
   Upload,
   MessageSquare,
+  ChevronDown,
+  Check,
+  Briefcase,
+  X,
 } from 'lucide-react';
 import { TowerId, ComplaintTicket } from '../../types';
 
@@ -28,6 +33,8 @@ export const HelpdeskView: React.FC = () => {
     currentMemberId,
     filterOnlyMyFilings,
     setFilterOnlyMyFilings,
+    vendors,
+    staffList,
   } = useSociety();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +60,114 @@ export const HelpdeskView: React.FC = () => {
   const [resolutionNote, setResolutionNote] = useState('');
   const [assignedVendor, setAssignedVendor] = useState('');
 
-  const isAdminOrSecretary = role === 'secretary' || role === 'admin';
+  // Hybrid Searchable/Creatable select state
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [vendorSearchQuery, setVendorSearchQuery] = useState('');
+  const [supabaseVendors, setSupabaseVendors] = useState<Array<{ name: string; category?: string }>>([]);
+  const vendorDropdownRef = useRef<HTMLDivElement>(null);
+
+  const isAdminOrSecretary = role === 'secretary' || role === 'admin' || role === 'mc_member';
+
+  // Load registered vendors from Supabase dynamically if configured
+  useEffect(() => {
+    async function fetchVendors() {
+      if (!isSupabaseConfigured) return;
+      try {
+        const { data, error } = await supabase.from('vendors').select('name, category');
+        if (!error && data && data.length > 0) {
+          setSupabaseVendors(data);
+        }
+      } catch (err) {
+        console.warn('Supabase vendors fetch error:', err);
+      }
+    }
+    fetchVendors();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(e.target as Node)) {
+        setVendorDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Combined list of registered vendors and in-house technicians
+  const allKnownVendorsAndTechnicians = useMemo(() => {
+    const list: Array<{ label: string; subLabel: string; type: 'Vendor' | 'Technician' }> = [];
+
+    // From context vendors
+    vendors.forEach((v) => {
+      if (v.name && !list.some((item) => item.label.toLowerCase() === v.name.toLowerCase())) {
+        list.push({
+          label: v.name,
+          subLabel: v.category || 'Registered Vendor',
+          type: 'Vendor',
+        });
+      }
+    });
+
+    // From Supabase vendors table
+    supabaseVendors.forEach((sv) => {
+      if (sv.name && !list.some((item) => item.label.toLowerCase() === sv.name.toLowerCase())) {
+        list.push({
+          label: sv.name,
+          subLabel: sv.category || 'Registered Vendor',
+          type: 'Vendor',
+        });
+      }
+    });
+
+    // In-house technicians from staff directory
+    staffList
+      .filter((s) => s.team === 'Electrician' || s.team === 'Plumber' || s.team === 'Supervisor')
+      .forEach((s) => {
+        const title = `${s.name} (${s.role || s.team})`;
+        if (!list.some((item) => item.label.toLowerCase() === title.toLowerCase())) {
+          list.push({
+            label: title,
+            subLabel: `In-House ${s.team}`,
+            type: 'Technician',
+          });
+        }
+      });
+
+    // Standard preset defaults
+    const presets = [
+      { label: 'Apex Plumbing Solutions', subLabel: 'Plumbing & Drainage AMC', type: 'Vendor' as const },
+      { label: 'Otis Elevators 24x7 Helpline', subLabel: 'Elevator Maintenance', type: 'Vendor' as const },
+      { label: 'AquaPure MBBR Water Technologies', subLabel: 'STP Plant Contractor', type: 'Vendor' as const },
+      { label: 'Voltech DG & Power Services', subLabel: 'Generator Backup AMC', type: 'Vendor' as const },
+      { label: 'Sunil Sharma (Senior Electrician)', subLabel: 'In-House Staff', type: 'Technician' as const },
+      { label: 'Santosh Mane (Plumber)', subLabel: 'In-House Staff', type: 'Technician' as const },
+      { label: 'Parvez Khan (Facility Supervisor)', subLabel: 'Estate Operations Desk', type: 'Technician' as const },
+    ];
+
+    presets.forEach((p) => {
+      if (!list.some((item) => item.label.toLowerCase() === p.label.toLowerCase())) {
+        list.push(p);
+      }
+    });
+
+    return list;
+  }, [vendors, staffList, supabaseVendors]);
+
+  // Filtered vendor list based on search query
+  const filteredVendorOptions = useMemo(() => {
+    const q = vendorSearchQuery.trim().toLowerCase();
+    if (!q) return allKnownVendorsAndTechnicians;
+    return allKnownVendorsAndTechnicians.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) || item.subLabel.toLowerCase().includes(q)
+    );
+  }, [allKnownVendorsAndTechnicians, vendorSearchQuery]);
+
+  const isExactVendorMatch = allKnownVendorsAndTechnicians.some(
+    (item) => item.label.toLowerCase() === vendorSearchQuery.trim().toLowerCase()
+  );
 
   const filteredTickets = complaints.filter((t) => {
     const matchesRLS =
@@ -102,6 +216,8 @@ export const HelpdeskView: React.FC = () => {
     setNewStatus(ticket.status);
     setResolutionNote(ticket.resolutionNotes || '');
     setAssignedVendor(ticket.assignedVendor || '');
+    setVendorSearchQuery(ticket.assignedVendor || '');
+    setVendorDropdownOpen(false);
   };
 
   return (
@@ -496,15 +612,150 @@ export const HelpdeskView: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Assigned Vendor / Technician</label>
-                <input
-                  type="text"
-                  value={assignedVendor}
-                  onChange={(e) => setAssignedVendor(e.target.value)}
-                  placeholder="e.g. Apex Plumbers, Otis AMC Engineer, Electrician Sunil"
-                  className="w-full p-2 border border-slate-300 rounded-lg"
-                />
+              {/* Hybrid Searchable / Creatable Vendor & Technician Select */}
+              <div className="relative" ref={vendorDropdownRef}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-800 font-semibold">
+                    Assigned Vendor / Technician
+                  </label>
+                  <span className="text-[10px] text-teal-700 font-medium">
+                    Search registered or type custom
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute left-3 top-2.5 text-slate-400">
+                    <Briefcase className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="text"
+                    value={vendorSearchQuery}
+                    onFocus={() => setVendorDropdownOpen(true)}
+                    onChange={(e) => {
+                      setVendorSearchQuery(e.target.value);
+                      setAssignedVendor(e.target.value);
+                      setVendorDropdownOpen(true);
+                    }}
+                    placeholder="Search vendor / technician or type custom name..."
+                    className="w-full pl-9 pr-14 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-900 focus:outline-teal-700"
+                  />
+                  <div className="absolute right-2.5 top-2 flex items-center gap-1 text-slate-400">
+                    {vendorSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVendorSearchQuery('');
+                          setAssignedVendor('');
+                        }}
+                        className="p-0.5 hover:text-slate-600 cursor-pointer"
+                        title="Clear"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setVendorDropdownOpen(!vendorDropdownOpen)}
+                      className="p-0.5 hover:text-slate-600 cursor-pointer"
+                    >
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          vendorDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dropdown Menu */}
+                {vendorDropdownOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs">
+                    {/* Custom Entry Option */}
+                    {vendorSearchQuery.trim() && !isExactVendorMatch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const customVal = vendorSearchQuery.trim();
+                          setAssignedVendor(customVal);
+                          setVendorSearchQuery(customVal);
+                          setVendorDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-teal-50 text-teal-800 font-semibold flex items-center gap-2 border-b border-slate-100 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                        <span>Assign custom: &ldquo;{vendorSearchQuery.trim()}&rdquo;</span>
+                      </button>
+                    )}
+
+                    {filteredVendorOptions.length === 0 && !vendorSearchQuery.trim() ? (
+                      <div className="px-3 py-2 text-slate-400 text-center">No vendors available</div>
+                    ) : (
+                      filteredVendorOptions.map((item) => {
+                        const isSelected = assignedVendor === item.label;
+                        return (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => {
+                              setAssignedVendor(item.label);
+                              setVendorSearchQuery(item.label);
+                              setVendorDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer transition-colors ${
+                              isSelected ? 'bg-teal-50/80 font-bold text-teal-900' : 'text-slate-800'
+                            }`}
+                          >
+                            <div className="truncate pr-2">
+                              <span className="block truncate font-medium">{item.label}</span>
+                              <span className="text-[10px] text-slate-400 block">{item.subLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                                  item.type === 'Vendor'
+                                    ? 'bg-sky-100 text-sky-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {item.type}
+                              </span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-teal-700" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap items-center gap-1 pt-1.5">
+                  <span className="text-[10px] text-slate-400 font-medium">Quick:</span>
+                  {[
+                    'In-House Electrician (Sunil)',
+                    'In-House Plumber (Santosh)',
+                    'Otis Elevators 24x7 Helpline',
+                    'AquaPure MBBR Water Technologies',
+                    'Parvez Khan (Facility Supervisor)',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setAssignedVendor(preset);
+                        setVendorSearchQuery(preset);
+                        setVendorDropdownOpen(false);
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors cursor-pointer ${
+                        assignedVendor === preset
+                          ? 'bg-teal-100 text-teal-900 border-teal-300 font-bold'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {preset.split('(')[0].trim()}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>

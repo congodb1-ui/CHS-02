@@ -56,6 +56,10 @@ export const ParkingView: React.FC = () => {
   const [csvError, setCsvError] = useState('');
   const [csvSuccess, setCsvSuccess] = useState('');
 
+  // Admin Edit Vehicle Modal state
+  const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
+  const [vehicleEditForm, setVehicleEditForm] = useState<Partial<VehicleRecord>>({});
+
   // Selected slot for detail modal or assignment
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
@@ -751,15 +755,27 @@ export const ParkingView: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
                             {(role === 'admin' || role === 'mc_member') && (
-                              <button
-                                onClick={() => deleteVehicle(v.id)}
-                                className="text-red-500 hover:text-red-700 p-1 rounded transition-colors cursor-pointer"
-                                title="Remove vehicle record"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingVehicle(v);
+                                    setVehicleEditForm({ ...v });
+                                  }}
+                                  className="text-teal-700 hover:text-teal-900 p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-teal-50"
+                                  title="Modify vehicle details"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => deleteVehicle(v.id)}
+                                  className="text-red-500 hover:text-red-700 p-1.5 rounded-lg transition-colors cursor-pointer hover:bg-red-50"
+                                  title="Remove vehicle record"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -1303,6 +1319,186 @@ A-703,Anil Chitnis,4-Wheeler,Hyundai Verna,MH 12 AC 0703,FASTAG-A703-4W,SOL-STK-
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Admin Modify Vehicle Record Modal */}
+      {editingVehicle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 text-xs my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-teal-50 text-teal-700 rounded-lg">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Modify Vehicle Record</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Administrator field editor for vehicle {editingVehicle.licensePlate}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingVehicle(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editingVehicle) return;
+                updateVehicle(editingVehicle.id, vehicleEditForm);
+                setEditingVehicle(null);
+              }}
+              className="space-y-3 max-h-[70vh] overflow-y-auto pr-1"
+            >
+              {/* Owner & Flat */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Owner / Resident Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.ownerName || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, ownerName: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Assigned Flat Number</label>
+                  <select
+                    value={vehicleEditForm.flatNo || ALL_SOCIETY_FLATS[0]}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, flatNo: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 bg-white"
+                  >
+                    {ALL_SOCIETY_FLATS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Vehicle Type & Make/Model */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Vehicle Classification</label>
+                  <select
+                    value={vehicleEditForm.vehicleType || '4-Wheeler'}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setVehicleEditForm({
+                        ...vehicleEditForm,
+                        vehicleType: val,
+                        isEv: val.includes('EV'),
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
+                  >
+                    <option value="4-Wheeler">4-Wheeler (Car / SUV)</option>
+                    <option value="2-Wheeler">2-Wheeler (Motorcycle / Scooter)</option>
+                    <option value="EV (4-Wheeler)">EV (Electric Car)</option>
+                    <option value="EV (2-Wheeler)">EV (Electric Scooter)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Make & Model</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.makeModel || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, makeModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-teal-700 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* License Plate & RFID */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">License Plate No.</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.licensePlate || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, licensePlate: e.target.value.toUpperCase() })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold uppercase text-slate-900 focus:outline-teal-700 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">RFID FastTag ID</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.rfidTagId || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, rfidTagId: e.target.value.toUpperCase() })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold uppercase text-slate-900 focus:outline-teal-700 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Slot No & Sticker No */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Allocated Parking Slot</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.parkingSlotNo || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, parkingSlotNo: e.target.value.toUpperCase() })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-teal-700 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Parking Sticker Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={vehicleEditForm.parkingStickerNo || ''}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, parkingStickerNo: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-slate-900 focus:outline-teal-700 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* EV Flag */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="font-semibold text-slate-800 block">Electric Vehicle (EV) Charging Allocation</span>
+                  <span className="text-[11px] text-slate-500">Requires society EV smart metering</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(vehicleEditForm.isEv)}
+                    onChange={(e) => setVehicleEditForm({ ...vehicleEditForm, isEv: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setEditingVehicle(null)}
+                  className="px-3.5 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl font-bold cursor-pointer shadow-sm transition-all"
+                >
+                  Save Vehicle Details
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

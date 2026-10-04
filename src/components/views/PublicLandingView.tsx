@@ -52,7 +52,7 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
           </h1>
 
           <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
-            Welcome to Solitaire Cooperative Housing Society (Towers A & B, Baner-Pashan Link Road, Pune).
+            Welcome to Solitaire Cooperative Housing Society (Towers A & B, Kool Homes Solitaire, Kausar Baugh, Kondhwa, Pune, Maharashtra 411048 · Kausar Baugh, NIBM).
             Secure portal for amenity reservations, vehicle FastTag parking, vendor procurement, and managing committee governance.
           </p>
 
@@ -145,7 +145,7 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
             <Bell className="w-5 h-5 text-teal-700" />
             <h2 className="text-xl font-bold text-slate-900">Public Society Notices & Announcements</h2>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Updated for Baner / Pashan Estate</span>
+          <span className="text-xs text-slate-500 font-medium">Kool Homes Solitaire · Kausar Baugh, NIBM</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

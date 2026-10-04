@@ -19,6 +19,7 @@ import { CommitteeView } from './components/views/CommitteeView';
 import { SupervisorInspectionView } from './components/views/SupervisorInspectionView';
 import { DirectoryView } from './components/views/DirectoryView';
 import { ProcurementView } from './components/views/ProcurementView';
+import { ResidentRegistryView } from './components/views/ResidentRegistryView';
 import { Footer } from './components/Footer';
 import { EmergencyModal } from './components/EmergencyModal';
 import { BookingModal } from './components/BookingModal';
@@ -34,10 +35,8 @@ const AppContent: React.FC = () => {
     isAuthenticated,
     isPendingApproval,
     isRejected,
+    openLoginModal,
   } = useSociety();
-
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [loginModalTab, setLoginModalTab] = useState<'login' | 'register'>('login');
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
@@ -51,29 +50,25 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {!isAuthenticated ? (
           <PublicLandingView
-            onOpenLogin={() => {
-              setLoginModalTab('login');
-              setIsLoginModalOpen(true);
-            }}
-            onOpenRegister={() => {
-              setLoginModalTab('register');
-              setIsLoginModalOpen(true);
-            }}
+            onOpenLogin={() => openLoginModal('login')}
+            onOpenRegister={() => openLoginModal('register')}
           />
         ) : (isPendingApproval || isRejected) ? (
           <PendingAccessView />
         ) : (
           <>
             {activeTab === 'home' && <HomeView />}
-            {activeTab === 'parking' && <ParkingView />}
-            {activeTab === 'documents' && <DocumentRepositoryView />}
-            {activeTab === 'inspection' && <SupervisorInspectionView />}
-            {activeTab === 'directory' && <DirectoryView />}
-            {activeTab === 'procurement' && <ProcurementView />}
+            {(activeTab === 'helpdesk') && <HelpdeskView />}
+            {(activeTab === 'registry' || activeTab === 'committee' || activeTab === 'directory') && (
+              <ResidentRegistryView />
+            )}
+            {(activeTab === 'vehicles' || activeTab === 'parking') && <ParkingView />}
+            {(activeTab === 'procurement') && <ProcurementView />}
+            {/* Contextual & direct dashboard links */}
             {activeTab === 'amenities' && <AmenitiesView />}
             {activeTab === 'tenants' && <TenantsView />}
-            {activeTab === 'helpdesk' && <HelpdeskView />}
-            {activeTab === 'committee' && <CommitteeView />}
+            {activeTab === 'documents' && <DocumentRepositoryView />}
+            {activeTab === 'inspection' && <SupervisorInspectionView />}
           </>
         )}
       </main>
@@ -87,11 +82,7 @@ const AppContent: React.FC = () => {
       {/* Global Interactive Modals */}
       <EmergencyModal />
       <BookingModal />
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        defaultTab={loginModalTab}
-      />
+      <LoginModal />
       <AIChatModal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}

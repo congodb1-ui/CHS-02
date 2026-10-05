@@ -265,7 +265,20 @@ export const DirectoryView: React.FC = () => {
                       {member.memberId}
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-900">
-                      {member.name}
+                      <div className="flex items-center gap-2.5">
+                        {member.avatarUrl ? (
+                          <img
+                            src={member.avatarUrl}
+                            alt={member.name}
+                            className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-800 font-bold text-[11px] flex items-center justify-center border border-teal-200 shrink-0">
+                            {member.name ? member.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'U'}
+                          </div>
+                        )}
+                        <span>{member.name}</span>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-slate-800">{member.flatNo}</span>

@@ -742,6 +742,7 @@ export const ResidentRegistryView: React.FC = () => {
                   >
                     <option value="Tower A">Tower A</option>
                     <option value="Tower B">Tower B</option>
+                    <option value="Tower C">Tower C</option>
                   </select>
                 </div>
                 <div>

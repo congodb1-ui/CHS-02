@@ -11,51 +11,18 @@ export const LiveStatusStrip: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 text-xs">
           {/* Status indicators */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            {/* STP Status */}
-            <button
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2 group text-left hover:text-teal-300 transition-colors cursor-pointer"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="font-semibold text-slate-300 group-hover:text-teal-200">STP Status:</span>
-              <span className="text-emerald-400 font-medium">Active & Recycled</span>
-              <span className="text-slate-500 hidden sm:inline">· 48k L/day flushing</span>
-            </button>
-
-            {/* Water Supply */}
-            <button
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2 group text-left hover:text-sky-300 transition-colors cursor-pointer"
-            >
-              <span className="h-2 w-2 rounded-full bg-sky-400"></span>
-              <span className="font-semibold text-slate-300 group-hover:text-sky-200">Water Supply:</span>
-              <span className="text-sky-400 font-medium">Slot Active</span>
-              <span className="text-slate-400 tabular-nums hidden sm:inline">(06:00–09:00 & 18:00–21:00)</span>
-            </button>
-
-            {/* DG Backup */}
-            <button
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2 group text-left hover:text-amber-300 transition-colors cursor-pointer"
-            >
-              <span className="h-2 w-2 rounded-full bg-amber-400"></span>
-              <span className="font-semibold text-slate-300 group-hover:text-amber-200">24/7 DG:</span>
-              <span className="text-amber-400 font-medium">Ready (82% Diesel)</span>
-              <span className="text-slate-500 hidden md:inline">· 7s Auto-cutover</span>
-            </button>
-
             {/* Daily Supervisor Inspection Live Feed */}
             <button
               onClick={() => setActiveTab('inspection')}
-              className="flex items-center gap-2 group text-left hover:text-teal-300 transition-colors cursor-pointer border-l border-slate-700/80 pl-4 hidden xl:flex"
+              className="flex items-center gap-2 group text-left hover:text-teal-300 transition-colors cursor-pointer"
             >
-              <span className="h-2 w-2 rounded-full bg-teal-400"></span>
-              <span className="font-semibold text-slate-300 group-hover:text-teal-200">Daily Inspection:</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-400"></span>
+              </span>
+              <span className="font-semibold text-slate-300 group-hover:text-teal-200">Daily Supervisor Inspection:</span>
               <span className="text-teal-400 font-medium">Day 2 (31/33 OK)</span>
-              <span className="text-slate-500">· Supervisor Logged</span>
+              <span className="text-slate-400 text-[11px] hidden sm:inline">· 33 Point Protocol Live</span>
             </button>
           </div>
 

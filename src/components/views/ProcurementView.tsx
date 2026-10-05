@@ -111,6 +111,17 @@ export const ProcurementView: React.FC = () => {
   const [editingQuote, setEditingQuote] = useState<VendorQuote | null>(null);
   const [editingWorkOrder, setEditingWorkOrder] = useState<WorkOrder | null>(null);
 
+  // Edit Work Order Form State
+  const [editWoTitle, setEditWoTitle] = useState('');
+  const [editWoScope, setEditWoScope] = useState('');
+  const [editWoAmount, setEditWoAmount] = useState<number>(0);
+  const [editWoStartDate, setEditWoStartDate] = useState('');
+  const [editWoTargetDate, setEditWoTargetDate] = useState('');
+  const [editWoWorkStatus, setEditWoWorkStatus] = useState<WorkOrder['workStatus']>('In Progress');
+  const [editWoPriority, setEditWoPriority] = useState<'Normal' | 'Urgent' | 'Critical'>('Normal');
+  const [editWoProgress, setEditWoProgress] = useState<number>(0);
+  const [editWoSuccessMsg, setEditWoSuccessMsg] = useState<string | null>(null);
+
   // Standard terms list & editor state
   const DEFAULT_WO_TERMS = useMemo(
     () => [
@@ -296,9 +307,13 @@ export const ProcurementView: React.FC = () => {
     setActiveTab('work_orders');
   };
 
-  // Secretary Approval Action
+  // Secretary Approval Action (Restricted strictly to MC Secretary role)
   const handleSecretaryApprove = () => {
     if (!showSecretaryApprovalModal) return;
+    if (role !== 'secretary') {
+      setApprovalError('Unauthorized: Only the MC Secretary has authority to approve Work Orders.');
+      return;
+    }
     if (!secretaryComments.trim()) {
       setApprovalError('Secretary Comments are mandatory before issuing approval.');
       return;
@@ -311,6 +326,10 @@ export const ProcurementView: React.FC = () => {
 
   const handleSecretaryRequestChanges = () => {
     if (!showSecretaryApprovalModal) return;
+    if (role !== 'secretary') {
+      setApprovalError('Unauthorized: Only the MC Secretary has authority to request revisions.');
+      return;
+    }
     if (!secretaryComments.trim()) {
       setApprovalError('Please detail the requested changes in Secretary Comments.');
       return;
@@ -319,6 +338,46 @@ export const ProcurementView: React.FC = () => {
     setShowSecretaryApprovalModal(null);
     setSecretaryComments('');
     setApprovalError('');
+  };
+
+  // Work Order Edit & Terms Handlers
+  const handleSaveWorkOrderEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWorkOrder) return;
+    if (!editWoTitle.trim()) {
+      alert('Work Order title is required.');
+      return;
+    }
+    updateWorkOrder(editingWorkOrder.id, {
+      title: editWoTitle.trim(),
+      scopeOfWork: editWoScope.trim(),
+      agreedAmount: Number(editWoAmount) || editingWorkOrder.agreedAmount,
+      startDate: editWoStartDate,
+      targetCompletionDate: editWoTargetDate,
+      progressPercent: Number(editWoProgress),
+      workStatus: editWoWorkStatus,
+      priority: editWoPriority,
+      termsAndConditions: woTermsList,
+    });
+    setEditWoSuccessMsg('Work Order & Terms updated successfully!');
+    setTimeout(() => {
+      setEditWoSuccessMsg(null);
+      setEditingWorkOrder(null);
+    }, 900);
+  };
+
+  const handleAddWoTerm = () => {
+    if (!newClauseInput.trim()) return;
+    setWoTermsList([...woTermsList, `${woTermsList.length + 1}. ${newClauseInput.trim()}`]);
+    setNewClauseInput('');
+  };
+
+  const handleRemoveWoTerm = (index: number) => {
+    setWoTermsList(woTermsList.filter((_, i) => i !== index));
+  };
+
+  const handleResetWoTerms = () => {
+    setWoTermsList([...DEFAULT_WO_TERMS]);
   };
 
   // Record Payment
@@ -585,12 +644,23 @@ export const ProcurementView: React.FC = () => {
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {isAuthorized && wo.approvalStatus !== 'Approved' && (
-                              <button
-                                onClick={() => setShowSecretaryApprovalModal(wo)}
-                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-bold cursor-pointer"
-                              >
-                                Review WO
-                              </button>
+                              role === 'secretary' ? (
+                                <button
+                                  onClick={() => setShowSecretaryApprovalModal(wo)}
+                                  className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-bold cursor-pointer"
+                                  title="Review and approve as MC Secretary"
+                                >
+                                  Secretary Action
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="px-2 py-1 bg-slate-200 text-slate-400 rounded text-[10px] font-bold cursor-not-allowed border border-slate-300"
+                                  title="Secretary approval is restricted exclusively to MC Secretary role (Disabled for Admin)"
+                                >
+                                  Secretary Action
+                                </button>
+                              )
                             )}
 
                             {isAuthorized && wo.approvalStatus === 'Approved' && bal > 0 && (
@@ -762,11 +832,21 @@ export const ProcurementView: React.FC = () => {
                         <button
                           onClick={() => {
                             setEditingWorkOrder(wo);
+                            setEditWoTitle(wo.title);
+                            setEditWoScope(wo.scopeOfWork);
+                            setEditWoAmount(wo.agreedAmount);
+                            setEditWoStartDate(wo.startDate);
+                            setEditWoTargetDate(wo.targetCompletionDate);
+                            setEditWoWorkStatus(wo.workStatus);
+                            setEditWoPriority(wo.priority || 'Normal');
+                            setEditWoProgress(wo.progressPercent);
                             setWoTermsList(
                               wo.termsAndConditions && wo.termsAndConditions.length > 0
-                                ? wo.termsAndConditions
-                                : DEFAULT_WO_TERMS
+                                ? [...wo.termsAndConditions]
+                                : [...DEFAULT_WO_TERMS]
                             );
+                            setNewClauseInput('');
+                            setEditWoSuccessMsg(null);
                           }}
                           className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg cursor-pointer flex items-center gap-1 transition-colors"
                           title="Modify Work Order & Customizable Terms"
@@ -777,12 +857,23 @@ export const ProcurementView: React.FC = () => {
                       )}
 
                       {isAuthorized && wo.approvalStatus !== 'Approved' && (
-                        <button
-                          onClick={() => setShowSecretaryApprovalModal(wo)}
-                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
-                        >
-                          Secretary Approval Action
-                        </button>
+                        role === 'secretary' ? (
+                          <button
+                            onClick={() => setShowSecretaryApprovalModal(wo)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
+                          >
+                            Secretary Approval Action
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 bg-slate-200 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed shadow-none border border-slate-300 flex items-center gap-1.5"
+                            title="Secretary Approval Action is restricted strictly to the MC Secretary role (Disabled for Admin & other roles)"
+                          >
+                            <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Secretary Approval Action</span>
+                          </button>
+                        )
                       )}
 
                       {isAuthorized && wo.approvalStatus === 'Approved' && bal > 0 && (
@@ -1437,6 +1528,18 @@ export const ProcurementView: React.FC = () => {
                 </p>
               </div>
 
+              {role !== 'secretary' && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 flex items-start gap-2 animate-in fade-in duration-150">
+                  <Lock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Secretary Sign-Off Restricted</p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+                      Formal Work Order approval and revision authority is restricted strictly to the <strong>MC Secretary</strong> role. You are currently logged in with role <strong>"{role}"</strong>, so approval action buttons are disabled.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {approvalError && (
                 <div className="p-3 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1451,18 +1554,20 @@ export const ProcurementView: React.FC = () => {
                 <textarea
                   rows={4}
                   required
+                  disabled={role !== 'secretary'}
                   placeholder="Enter committee resolution reference, audit justification, or specific revisions required by the vendor..."
                   value={secretaryComments}
                   onChange={(e) => setSecretaryComments(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs focus:ring-1 focus:ring-teal-600"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs focus:ring-1 focus:ring-teal-600 disabled:opacity-60"
                 />
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <button
                   type="button"
+                  disabled={role !== 'secretary'}
                   onClick={handleSecretaryRequestChanges}
-                  className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-semibold cursor-pointer"
+                  className="px-4 py-2 bg-red-100 hover:bg-red-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed text-red-800 rounded-lg font-semibold cursor-pointer transition-colors"
                 >
                   Request Changes
                 </button>
@@ -1477,8 +1582,9 @@ export const ProcurementView: React.FC = () => {
                   </button>
                   <button
                     type="button"
+                    disabled={role !== 'secretary'}
                     onClick={handleSecretaryApprove}
-                    className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold cursor-pointer shadow-xs"
+                    className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg font-bold cursor-pointer shadow-xs transition-colors"
                   >
                     Approve Work Order
                   </button>

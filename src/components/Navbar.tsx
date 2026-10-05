@@ -19,7 +19,11 @@ import {
   ChevronRight,
   Building,
   Image as GalleryIcon,
+  User,
+  Camera,
+  ClipboardCheck,
 } from 'lucide-react';
+import { ProfileEditModal } from './ProfileEditModal';
 
 export const Navbar: React.FC = () => {
   const {
@@ -41,6 +45,7 @@ export const Navbar: React.FC = () => {
 
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -51,6 +56,7 @@ export const Navbar: React.FC = () => {
   // Core Navigation Tabs with Role Enforcement
   const productionNavTabs = [
     { id: 'home', label: 'Dashboard', icon: LayoutDashboard, publicAllowed: true, adminOnly: false },
+    { id: 'inspection', label: 'Supervisor Operations', icon: ClipboardCheck, publicAllowed: false, adminOnly: false },
     { id: 'helpdesk', label: 'Helpline & Tickets', icon: LifeBuoy, publicAllowed: false, adminOnly: false },
     { id: 'registry', label: 'Resident & Flat Registry', icon: Users, publicAllowed: false, adminOnly: false },
     { id: 'vehicles', label: 'Vehicles', icon: Car, publicAllowed: false, adminOnly: false },
@@ -113,6 +119,7 @@ export const Navbar: React.FC = () => {
   // Helper to determine active state including legacy aliases
   const isTabActive = (tabId: string) => {
     if (activeTab === tabId) return true;
+    if (tabId === 'inspection' && (activeTab === 'supervisor' || activeTab === 'checklist')) return true;
     if (tabId === 'registry' && (activeTab === 'committee' || activeTab === 'directory')) return true;
     if (tabId === 'vehicles' && activeTab === 'parking') return true;
     if (tabId === 'procurement' && activeTab === 'vendors') return true;
@@ -312,8 +319,24 @@ export const Navbar: React.FC = () => {
                         </div>
                       </div>
 
+                      <div className="px-3 pt-2">
+                        <button
+                          onClick={() => {
+                            setRoleMenuOpen(false);
+                            setIsProfileModalOpen(true);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:text-teal-900 hover:bg-teal-50 rounded-lg cursor-pointer flex items-center justify-between transition-colors"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Camera className="w-3.5 h-3.5 text-teal-700" />
+                            <span>Edit Profile Photo (Optional)</span>
+                          </span>
+                          <span className="text-[10px] text-teal-600 font-bold">Update</span>
+                        </button>
+                      </div>
+
                       {(role === 'admin' || role === 'mc_member' || role === 'secretary') && (
-                        <div className="px-3 pt-2">
+                        <div className="px-3 pt-1">
                           <button
                             onClick={() => {
                               setRoleMenuOpen(false);
@@ -425,6 +448,12 @@ export const Navbar: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Optional Resident Profile Photo & Settings Modal */}
+      <ProfileEditModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </header>
   );
 };

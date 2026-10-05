@@ -25,15 +25,11 @@ import { Footer } from './components/Footer';
 import { EmergencyModal } from './components/EmergencyModal';
 import { BookingModal } from './components/BookingModal';
 import { LoginModal } from './components/LoginModal';
-import { AIChatModal } from './components/AIChatModal';
-import { AIFloatingWidget } from './components/AIFloatingWidget';
 import { AdminSettingsModal } from './components/AdminSettingsModal';
 
 const AppContent: React.FC = () => {
   const {
     activeTab,
-    isAiModalOpen,
-    setIsAiModalOpen,
     isAuthenticated,
     isPendingApproval,
     isRejected,
@@ -79,7 +75,7 @@ const AppContent: React.FC = () => {
             {activeTab === 'amenities' && <AmenitiesView />}
             {activeTab === 'tenants' && <TenantsView />}
             {activeTab === 'documents' && <DocumentRepositoryView />}
-            {activeTab === 'inspection' && <SupervisorInspectionView />}
+            {(activeTab === 'inspection' || activeTab === 'supervisor') && <SupervisorInspectionView />}
           </>
         )}
       </main>
@@ -87,18 +83,11 @@ const AppContent: React.FC = () => {
       {/* 4-Column Footer */}
       <Footer />
 
-      {/* Global Floating AI Launcher */}
-      <AIFloatingWidget />
-
       {/* Global Interactive Modals */}
       <EmergencyModal />
       <BookingModal />
       <LoginModal />
       <AdminSettingsModal />
-      <AIChatModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-      />
     </div>
   );
 };

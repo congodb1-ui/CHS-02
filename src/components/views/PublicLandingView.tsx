@@ -12,7 +12,6 @@ import {
   Users,
   ChevronRight,
   PhoneCall,
-  Sparkles,
   AlertTriangle,
   KeyRound,
   FileText,
@@ -35,7 +34,7 @@ interface PublicLandingViewProps {
 }
 
 export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogin, onOpenRegister }) => {
-  const { notices, openAiWithPrompt, societyDetails } = useSociety();
+  const { notices, societyDetails } = useSociety();
   const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; title: string; subtitle: string } | null>(null);
 
   return (
@@ -105,13 +104,6 @@ export const PublicLandingView: React.FC<PublicLandingViewProps> = ({ onOpenLogi
             >
               <UserCheck className="w-4 h-4 text-teal-400" />
               <span>Register Your Flat</span>
-            </button>
-            <button
-              onClick={() => openAiWithPrompt()}
-              className="inline-flex items-center gap-2 px-5 py-3 bg-teal-950/80 hover:bg-teal-900/90 text-teal-200 border border-teal-700/50 rounded-xl text-sm font-medium transition-colors cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-teal-400" />
-              <span>Ask AI Bye-Laws Assistant</span>
             </button>
           </div>
 

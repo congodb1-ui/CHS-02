@@ -1,32 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSociety } from '../../context/SocietyContext';
 import {
-  Building2,
-  Droplets,
-  Zap,
-  ShieldCheck,
   Wrench,
   Calendar,
-  FileText,
   ArrowRight,
-  Sparkles,
-  ChevronRight,
-  Clock,
-  CheckCircle,
   ClipboardCheck,
-  Bot,
-  MessageSquareText,
-  HelpCircle,
-  KeyRound,
-  Truck,
-  Search,
   Car,
-  AlertTriangle,
   FolderOpen,
   Image as ImageIcon,
 } from 'lucide-react';
 import { PublicLandingView } from './PublicLandingView';
 import { CommunityPollsSection } from '../polls/CommunityPollsSection';
+import { CampusSiteMap } from '../campus/CampusSiteMap';
 import heroImage from '../../assets/images/hero_solitaire_society_1790929946633.jpg';
 
 export const HomeView: React.FC = () => {
@@ -36,7 +21,6 @@ export const HomeView: React.FC = () => {
     setIsBookingModalOpen: _setBooking,
     setTargetAmenity,
     notices,
-    openAiWithPrompt,
     role,
     isAuthenticated,
     isPendingApproval,
@@ -59,37 +43,6 @@ export const HomeView: React.FC = () => {
     setIsBookingModalOpen(true);
   };
 
-  const aiUseCases = [
-    {
-      title: 'Society Bye-Laws & Timings',
-      desc: 'Instant lookup of swimming pool dress code, quiet hours after 10 PM, gym access, and guest pass rules without browsing lengthy PDFs.',
-      icon: Clock,
-      samplePrompt: 'What are the swimming pool timings and dress code rules for residents?',
-      badge: 'Rules & Bylaws',
-    },
-    {
-      title: 'Tenant Shifting & Elevator Hours',
-      desc: 'Ask allowed elevator shifting hours (11 AM–2 PM & 2 PM–5 PM) to avoid elevator jams during peak office commute times.',
-      icon: Truck,
-      samplePrompt: 'What are the allowed elevator shifting hours and required police documents for tenants?',
-      badge: 'Tenancy',
-    },
-    {
-      title: 'FastTag Vehicle Parking & Bays',
-      desc: 'Check visitor pass limits, stilt & basement bay rules, and FastTag automated gate sensor troubleshooting.',
-      icon: Car,
-      samplePrompt: 'How do I register a new vehicle or get a FastTag visitor pass for my guest?',
-      badge: 'Parking & FastTag',
-    },
-    {
-      title: 'Draft Automated Repair Tickets',
-      desc: 'AI formats detailed service requests for plumbing, electrical tripping, or lift jerky motion ready to submit on the Helpdesk.',
-      icon: Wrench,
-      samplePrompt: 'Help me draft an urgent complaint about low water pressure in Tower A master bathroom.',
-      badge: 'Helpdesk',
-    },
-  ];
-
   return (
     <div className="space-y-10 pb-16 animate-in fade-in duration-300">
       {/* Hero Section */}
@@ -109,7 +62,7 @@ export const HomeView: React.FC = () => {
           {/* Hero Content Overlay */}
           <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10 max-w-4xl text-white">
             <div className="text-xs font-semibold text-teal-400 uppercase tracking-wider mb-2">
-              Registration No. PNA/HSG/TC/12492/2018 · Towers A & B
+              Registration No. PNA/HSG/TC/12492/2018 · Towers A, B & C
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white text-balance leading-tight mb-3">
               Solitaire CHS Resident Operations & Governance
@@ -121,10 +74,17 @@ export const HomeView: React.FC = () => {
             {/* Quick Action CTAs */}
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setActiveTab('helpdesk')}
+                onClick={() => setActiveTab('inspection')}
                 className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer whitespace-nowrap"
               >
-                <Wrench className="w-4 h-4" />
+                <ClipboardCheck className="w-4 h-4" />
+                <span>Supervisor Checklist</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('helpdesk')}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-xs text-white border border-white/20 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap"
+              >
+                <Wrench className="w-4 h-4 text-teal-300" />
                 <span>Helpdesk Tickets</span>
               </button>
               <button
@@ -171,6 +131,9 @@ export const HomeView: React.FC = () => {
             180 Residential units strictly bound by the 1 Member Per Flat rule.
           </p>
         </div>
+
+        {/* Interactive Vector Architectural Site Map with Real-time Occupancy Indicators */}
+        <CampusSiteMap />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Tower A */}
@@ -237,67 +200,6 @@ export const HomeView: React.FC = () => {
 
       {/* Community Polls & Society Voting with Live D3 Visualizations */}
       <CommunityPollsSection />
-
-      {/* AI Resident Assistant Feature Showcase */}
-      <section className="p-6 sm:p-8 bg-slate-900 border border-slate-800 rounded-3xl text-white space-y-6 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold">
-              <Bot className="w-3.5 h-3.5 text-teal-400" />
-              <span>Google Gemini Powered Knowledge Engine</span>
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Solitaire Society AI Assistant</h2>
-            <p className="text-xs text-slate-400">
-              Ground-truth answers for bye-laws, parking guidelines, shifting hours, and emergency desk.
-            </p>
-          </div>
-
-          <button
-            onClick={() => openAiWithPrompt()}
-            className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Launch Assistant</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {aiUseCases.map((useCase) => {
-            const Icon = useCase.icon;
-            return (
-              <div
-                key={useCase.title}
-                className="p-5 bg-slate-800/80 border border-slate-700/60 rounded-2xl flex flex-col justify-between space-y-3 hover:border-teal-500/50 transition-colors group"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 bg-slate-900 rounded-lg text-teal-400 group-hover:scale-105 transition-transform">
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-teal-300 bg-teal-950/60 border border-teal-800/60 px-2 py-0.5 rounded">
-                      {useCase.badge}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-bold text-white group-hover:text-teal-300 transition-colors">
-                    {useCase.title}
-                  </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {useCase.desc}
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => openAiWithPrompt(useCase.samplePrompt)}
-                  className="w-full pt-2 border-t border-slate-700/60 text-left text-xs font-semibold text-teal-400 hover:text-teal-300 flex items-center justify-between group-hover:translate-x-0.5 transition-all cursor-pointer"
-                >
-                  <span className="truncate">Try this prompt</span>
-                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {/* Official Bulletins */}
       <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
